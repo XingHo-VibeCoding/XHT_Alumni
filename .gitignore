@@ -1,0 +1,6 @@
+# WorkBuddy AI 协作元数据（记忆/临时产物/技能缓存），不入团队仓库
+.workbuddy/
+
+# Windows 系统垃圾文件
+Thumbs.db
+Desktop.ini
