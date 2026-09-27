@@ -4,3 +4,8 @@
 # Windows 系统垃圾文件
 Thumbs.db
 Desktop.ini
+
+# singho-site 依赖与构建产物
+singho-site/node_modules/
+singho-site/dist/
+singho-site/.astro/

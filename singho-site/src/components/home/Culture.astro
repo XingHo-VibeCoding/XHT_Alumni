@@ -1,0 +1,39 @@
+---
+/**
+ * Culture.astro — 第三屏：文化内核（视觉规范 P1「文化内核模块」+ PRD 附录 F）
+ * 品牌介绍 + 精选价值观卡片 ≤4 张（F.3 建议精选：第 1/2/3/36 条）。
+ * 36 条全文在 /values 独立页（不经主导航），此处仅「查看全部」入口。
+ */
+import home from '../../data/home.json';
+---
+
+<section class="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+  <h2 class="text-center text-2xl font-medium">文化内核</h2>
+
+  <!-- 品牌介绍（简述，完整叙事待核心文案定稿后补入） -->
+  <p class="mx-auto mt-3 max-w-2xl text-center text-sm text-[var(--text-secondary)]">
+    我们相信长期主义与扎实做事，以下是团队从 36 条文化价值观中精选的信条
+  </p>
+
+  <!-- 精选价值观：编号卡。桌面 4 列 → 平板 2×2 → 移动 1 列（F.4 排版规则） -->
+  <div class="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    {home.featuredValues.map((v) => (
+      <article class="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-6">
+        <!-- 编号：品牌蓝·亮，等宽 -->
+        <span class="tabular font-en text-sm text-[var(--brand-blue-300)]">
+          {String(v.no).padStart(2, '0')}
+        </span>
+        <h3 class="mt-3 text-lg leading-snug font-semibold">{v.title}</h3>
+        <!-- 副句可空（第 36 条无副句）：有则渲染，无则不产生空元素 -->
+        {v.sub && <p class="mt-2 text-sm text-[var(--text-secondary)]">{v.sub}</p>}
+      </article>
+    ))}
+  </div>
+
+  <!-- 下钻入口：/values 页后续模块实现，暂用 "#" 占位 -->
+  <p class="mt-10 text-center">
+    <a href="#" class="text-sm text-[var(--brand-blue-300)] underline-offset-4 hover:underline">
+      查看全部 36 条 →
+    </a>
+  </p>
+</section>

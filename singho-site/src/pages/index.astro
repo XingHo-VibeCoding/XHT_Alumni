@@ -1,0 +1,37 @@
+---
+/**
+ * index.astro — P1 首页（PRD M1 / Epic 6，视觉规范 P1）
+ *
+ * 页面结构（REQ-005 顺序）：
+ *   启动封面（E0，BaseLayout 内）→ 首屏三件套 + 理念 → 团队概览 → 文化内核 → 口号屏 → 页脚
+ * 首页只承担品牌门面职责，内容经顶部导航切换进入，不做全内容长滚动。
+ *
+ * MVP 范围说明：首屏为 E1 降级形态（静态三件套 + 静止星点）；
+ * 「星野凝字」粒子动效岛为下一个模块，完成后接入首屏。
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import BrandTrio from '../components/home/BrandTrio.astro';
+import TeamStats from '../components/home/TeamStats.astro';
+import Culture from '../components/home/Culture.astro';
+import SloganScreen from '../components/home/SloganScreen.astro';
+---
+
+<BaseLayout title="星禾科技 Singho">
+  <!-- 首屏：品牌三件套 + 品牌理念 -->
+  <BrandTrio />
+
+  <!-- 口号屏前的整屏级空白（视觉规范：口号屏前后留白即庄重感） -->
+  <div class="h-24 sm:h-40" aria-hidden="true"></div>
+
+  <!-- 第二屏：团队概览 -->
+  <TeamStats />
+
+  <!-- 第三屏：文化内核 -->
+  <Culture />
+
+  <!-- 口号屏前的整屏级空白 -->
+  <div class="h-24 sm:h-40" aria-hidden="true"></div>
+
+  <!-- 独立口号屏 -->
+  <SloganScreen />
+</BaseLayout>

@@ -1,0 +1,55 @@
+/* global.css — 全局样式入口：Tailwind + 品牌令牌 + 基础规则 */
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* ---- 基础排版 ---- */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  /* 深空底：最底层 --bg-void，主背景 --bg-base，用纵向渐变模拟深空纵深 */
+  background: linear-gradient(180deg, var(--bg-void) 0%, var(--bg-base) 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-cn);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 焦点环（视觉规范：2px 品牌蓝·亮，偏移 2px，全站可见 —— WCAG AA） */
+:focus-visible {
+  outline: 2px solid var(--brand-blue-300);
+  outline-offset: 2px;
+}
+
+/* 英文/数字统一字体栈 */
+.font-en {
+  font-family: var(--font-en);
+}
+
+/* 数字等宽（团队概览用，tabular-nums） */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 品牌渐变文字工具类（仅用于 ≥24px 大字，见视觉规范 2.4 对比度结论） */
+.brand-gradient-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- E14 减少动画：全站降级（opacity 变化且 ≤150ms）---- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.15s !important;
+    transition-duration: 0.15s !important;
+  }
+}

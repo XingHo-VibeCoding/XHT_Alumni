@@ -1,0 +1,68 @@
+---
+/**
+ * IntroCover.astro — 启动封面（E0，REQ-001 / REQ-003）
+ *
+ * 行为（严格按 TCD 7.1）：
+ * - 默认隐藏（display:none）。内联脚本检测 sessionStorage：首次进入站点才显示 →
+ *   保证 <noscript> / JS 失败场景下封面永不出现，网站不会被"堵在门外"。
+ * - 点击「进入」→ 写入会话标记 → 隐藏封面。MVP 阶段首页为静态首屏（E1 降级形态），
+ *   故点击后无动效可播；粒子动效岛完成后再在此处触发 E1。
+ * - prefers-reduced-motion：仍呈现封面，点击后直接静态进入（行为一致，天然满足）。
+ */
+---
+
+<!-- 全屏深空底封面：无导航、无页脚、无品牌文案——留白即仪式感（视觉规范 P1 E0） -->
+<div
+  id="intro-cover"
+  class="fixed inset-0 z-50 hidden flex-col items-center justify-center bg-[var(--bg-void)]"
+  role="dialog"
+  aria-modal="true"
+  aria-label="欢迎进入星禾科技网站"
+>
+  <!-- 中央「进入」按钮：主按钮规格放大版 + ≥3s 呼吸光晕（不得闪烁） -->
+  <button
+    id="intro-enter"
+    type="button"
+    class="intro-btn inline-flex h-14 items-center rounded-xl px-14 text-lg font-medium text-white"
+    style="background: var(--brand-gradient);"
+  >
+    进入
+  </button>
+</div>
+
+<script>
+  // 会话标记 key：同一会话内回首页不再出现（REQ-003）
+  const KEY = 'singho-intro-done';
+  const cover = document.getElementById('intro-cover');
+  const btn = document.getElementById('intro-enter');
+
+  if (cover && btn) {
+    // 首次进入站点 → 呈现封面；已是会话内回访 → 保持隐藏
+    if (!sessionStorage.getItem(KEY)) {
+      cover.classList.remove('hidden');
+      cover.classList.add('flex');
+    }
+
+    btn.addEventListener('click', () => {
+      sessionStorage.setItem(KEY, '1');
+      cover.classList.add('hidden');
+      cover.classList.remove('flex');
+    });
+  }
+</script>
+
+<style>
+  /* 呼吸光晕：周期 3.6s（≥3s 达标），幅度低，不闪烁；减少动画模式下由全局规则压缩 */
+  .intro-btn {
+    animation: intro-breathe 3.6s ease-in-out infinite;
+  }
+  @keyframes intro-breathe {
+    0%,
+    100% {
+      box-shadow: 0 0 24px 0 rgba(138, 50, 239, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 56px 6px rgba(138, 50, 239, 0.55);
+    }
+  }
+</style>

@@ -1,0 +1,71 @@
+---
+/**
+ * TeamStats.astro — 第二屏：团队概览（视觉规范 P1）
+ * 四项指标横排，数字用 tabular-nums；数据来自 src/data/home.json（占位，待素材录入替换）。
+ * E3 模块入场动效：进入视口 opacity 0→1 + translateY 24→0（减少动画模式下直接显示）。
+ */
+import home from '../../data/home.json';
+
+// 指标卡配置：标题 + 数值来源
+const stats = [
+  { label: '团队成员', value: home.teamOverview.members, suffix: '+' },
+  { label: '学习方向', value: home.teamOverview.directions, suffix: '' },
+  { label: '分享场次', value: home.teamOverview.sharings, suffix: '' },
+  { label: '经历条目', value: home.teamOverview.events, suffix: '+' },
+];
+---
+
+<section class="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+  <h2 class="text-center text-2xl font-medium">团队概览</h2>
+  <p class="mt-3 text-center text-sm text-[var(--text-secondary)]">
+    一群在各自方向持续深钻的伙伴
+  </p>
+
+  <!-- E3 入场：JS 加类名触发过渡；无 JS 时默认可见（渐进增强） -->
+  <dl id="team-stats" class="mt-14 grid grid-cols-2 gap-6 sm:grid-cols-4 sm:gap-8">
+    {stats.map((s) => (
+      <div class="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] px-4 py-8 text-center">
+        <dt class="text-[13px] text-[var(--text-tertiary)]">{s.label}</dt>
+        <!-- 数字大字 + 等宽；suffix 用 "+" 表达"按 100 人规划有余量"类语义 -->
+        <dd class="tabular font-en mt-3 text-4xl font-semibold">
+          {s.value}<span class="text-[var(--brand-blue-300)]">{s.suffix}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</section>
+
+<script>
+  // E3：卡片进入视口后依次淡入上移（错峰 80ms）；减少动画模式下全局规则已压缩过渡
+  const grid = document.getElementById('team-stats');
+  if (grid) {
+    const cards = grid.querySelectorAll(':scope > div');
+    // 初始隐藏仅在 JS 可用时施加，保证无 JS 也能看到内容
+    cards.forEach((c) => c.classList.add('stat-card'));
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            cards.forEach((c, i) => (c.style.transitionDelay = `${i * 80}ms`));
+            grid.classList.add('is-visible');
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+    io.observe(grid);
+  }
+</script>
+
+<style>
+  .stat-card {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 600ms ease-out, transform 600ms ease-out;
+  }
+  .is-visible .stat-card {
+    opacity: 1;
+    transform: translateY(0);
+  }
+</style>

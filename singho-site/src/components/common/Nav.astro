@@ -1,0 +1,71 @@
+---
+/**
+ * Nav.astro — 全站固定顶部导航栏（REQ-006，视觉规范组件规格）
+ * 高 64px；滚动过首屏后背景变 rgba(10,12,26,0.85) + 背景模糊。
+ * TODO: 星图/分享/金句/经历/校友会页面尚未创建，暂用 "#" 占位，页面模块完成后再替换真实路由。
+ */
+import logo from '../../assets/logo/monkey-head.svg';
+
+// 导航项与 PRD 第 8 章信息架构一致（6 项不膨胀；/values 不经主导航）
+const links = [
+  { label: '星图', href: '#' },
+  { label: '分享', href: '#' },
+  { label: '金句', href: '#' },
+  { label: '经历', href: '#' },
+  { label: '校友会', href: '#' },
+];
+---
+
+<header id="site-nav" class="fixed inset-x-0 top-0 z-40">
+  <nav class="relative mx-auto h-16 max-w-6xl px-4 sm:px-6" aria-label="主导航">
+    <!-- 品牌入口：猴头标 + 中文名（点击回首页），保持居左 -->
+    <a href="/" class="flex h-full items-center gap-2.5" aria-label="星禾科技 首页">
+      <img src={logo.src} alt="星禾科技标识" width="28" height="30" class="h-[30px] w-auto" />
+      <span class="text-base font-semibold tracking-wide">星禾科技</span>
+    </a>
+
+    <!-- 导航链接组：绝对定位水平居中于整条导航栏（2026-09-27 效果图确认稿） -->
+    <ul class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 sm:gap-2">
+      {links.map((l) => (
+        <li>
+          <!-- 次要文本色，悬停提亮 -->
+          <a
+            href={l.href}
+            class="rounded-md px-2.5 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:px-3"
+          >
+            {l.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</header>
+
+<script>
+  // 滚动过首屏（约一屏高度）后，导航加毛玻璃背景，避免与正文混叠
+  const nav = document.getElementById('site-nav');
+  if (nav) {
+    const onScroll = () => {
+      // "过首屏"以 480px 为经验阈值：首页首屏远高于此，内容页则几乎立即生效
+      if (window.scrollY > 480) {
+        nav.classList.add('is-scrolled');
+      } else {
+        nav.classList.remove('is-scrolled');
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+</script>
+
+<style>
+  /* 默认透明底（首屏三件套不被遮挡）；滚动后按视觉规范变半透明面板底 + 模糊 */
+  #site-nav {
+    transition: background-color 240ms ease, backdrop-filter 240ms ease;
+  }
+  #site-nav.is-scrolled {
+    background-color: rgba(10, 12, 26, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+</style>

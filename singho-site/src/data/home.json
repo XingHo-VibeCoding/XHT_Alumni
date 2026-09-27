@@ -1,0 +1,22 @@
+{
+  "philosophy": "打造一家伟大的科技公司，给众人送去希望和梦想",
+  "slogan": ["此生属于祖国，", "此生属于事业，", "此生属于科技，", "此生无怨无悔"],
+  "teamOverview": {
+    "_comment": "占位数据：成员数为 PRD 事实（约 80 人，按 100 规划）；其余为示例占位，待首批素材录入后由内容文件统计替换",
+    "members": 80,
+    "directions": 6,
+    "sharings": 10,
+    "events": 20
+  },
+  "featuredValues": [
+    { "no": 1, "title": "痴迷学习和成长", "sub": "没有价值，一无是处" },
+    { "no": 2, "title": "扎扎实实做小事", "sub": "小事磨炼的是心性" },
+    { "no": 3, "title": "严格要求团队成员", "sub": "因为严格才是大爱" },
+    { "no": 36, "title": "时刻牢记自己的恩人和贵人", "sub": "" }
+  ],
+  "contact": {
+    "_comment": "公司统一联系入口占位：PRD 要求不含任何个人联系方式，正式邮箱待定",
+    "label": "联系我们",
+    "href": "mailto:contact@singho.example.com"
+  }
+}

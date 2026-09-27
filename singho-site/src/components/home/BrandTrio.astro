@@ -1,0 +1,101 @@
+---
+/**
+ * BrandTrio.astro — 首屏品牌三件套 + 品牌理念（REQ-002 / REQ-007）
+ *
+ * 布局严格按视觉规范 P1「品牌三件套 v5 定稿」：
+ * - 猴头标在左（视觉主体①，宽高比 0.947，不用正方形容器）
+ * - 右列：Singho 眉题（10° oblique、Light、字距 +10、近白）在上，
+ *          星禾科技（视觉主体②，Bold、紫→蓝渐变）在下，两行严格左对齐
+ * - 中文底边与猴头底边对齐；文字组整体高 ≈ 猴头 93%
+ *
+ * MVP 采用 E1 的降级形态：静态三件套 + CSS 静止星点背景（TCD 7.4 降级规格）。
+ * 粒子动效岛（星野凝字）完成后，动效结束即淡入本组件（TCD 7.2 落位处理）。
+ *
+ * 品牌理念文字与 PRD 附录 E 一字不差，取自 src/data/home.json。
+ */
+import logo from '../../assets/logo/monkey-head.svg';
+import home from '../../data/home.json';
+---
+
+<!-- 首屏：min-h-screen 占满一屏；星点层由 .starfield 提供 -->
+<section class="relative flex min-h-screen items-center justify-center overflow-hidden">
+  <!-- E1 降级形态：一层静止星点（纯 CSS，零 JS） -->
+  <div class="starfield" aria-hidden="true"></div>
+
+  <div class="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 pt-16 sm:px-6">
+    <!-- 三件套：猴头标（左） + 文字组（右） -->
+    <div class="flex items-end gap-5 sm:gap-8">
+      <img
+        src={logo.src}
+        alt="星禾科技猴头标识"
+        class="h-auto w-[clamp(120px,22vw,240px)]"
+        width="356"
+        height="376"
+        fetchpriority="high"
+      />
+      <div class="trio-text flex flex-col">
+        <!-- 眉题 Singho：Light、字距 +10、10° oblique -->
+        <span class="font-en text-[clamp(20px,3.4vw,36px)] font-light tracking-[0.08em] text-[var(--text-primary)]" style="font-style: oblique 10deg;">
+          Singho
+        </span>
+        <!-- 中文主名：Bold、紫→蓝渐变（渐变给中文主名，属大字范畴） -->
+        <span class="brand-gradient-text text-[clamp(48px,9.5vw,104px)] leading-none font-bold tracking-[0.08em]" style="font-style: oblique 10deg;">
+          星禾科技
+        </span>
+      </div>
+    </div>
+
+    <!-- 品牌理念（附录 E 原文，一字不改）—— Display 44–48 档位，随视口缩放 -->
+    <p class="mt-12 max-w-3xl text-center text-[clamp(26px,4.2vw,46px)] leading-[1.15] font-semibold">
+      {home.philosophy}
+    </p>
+
+    <!-- 重播开场动效入口（REQ-004 P1）：MVP 阶段重播 = 重新呈现启动封面 -->
+    <button
+      id="replay-intro"
+      type="button"
+      class="mt-10 text-sm text-[var(--text-tertiary)] underline-offset-4 transition-colors hover:text-[var(--text-secondary)] hover:underline"
+    >
+      重播开场
+    </button>
+  </div>
+</section>
+
+<script>
+  // 重播入口：清掉会话标记并重新显示封面，用户点「进入」即完成一次重播
+  const replay = document.getElementById('replay-intro');
+  const cover = document.getElementById('intro-cover');
+  replay?.addEventListener('click', () => {
+    if (!cover) return;
+    sessionStorage.removeItem('singho-intro-done');
+    cover.classList.remove('hidden');
+    cover.classList.add('flex');
+  });
+</script>
+
+<style>
+  /* ---- 静止星点层：三层 radial-gradient 撒点，模拟深空星野（E1 降级形态） ---- */
+  .starfield {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 12% 24%, var(--star-core) 50%, transparent 51%),
+      radial-gradient(1px 1px at 68% 12%, rgba(111, 168, 255, 0.9) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 84% 62%, var(--star-core) 50%, transparent 51%),
+      radial-gradient(1px 1px at 32% 74%, rgba(199, 123, 255, 0.8) 50%, transparent 51%),
+      radial-gradient(1px 1px at 52% 44%, var(--star-core) 50%, transparent 51%),
+      radial-gradient(2px 2px at 90% 30%, rgba(111, 168, 255, 0.7) 50%, transparent 51%),
+      radial-gradient(1px 1px at 8% 82%, var(--star-core) 50%, transparent 51%),
+      radial-gradient(1.5px 1.5px at 44% 90%, rgba(242, 246, 255, 0.8) 50%, transparent 51%);
+    background-repeat: repeat;
+    background-size: 640px 480px;
+    opacity: 0.55;
+  }
+
+  /* ---- 三件套排版校正 ---- */
+  .trio-text {
+    /* 中文底边与猴头底边对齐：flex items-end 已对齐盒底，微调行高消除下伸部误差 */
+    line-height: 1;
+    padding-bottom: 0.04em;
+  }
+</style>

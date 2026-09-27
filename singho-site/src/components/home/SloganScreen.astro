@@ -1,0 +1,77 @@
+---
+/**
+ * SloganScreen.astro — 独立口号屏（REQ-008 / E15）
+ *
+ * 硬约束（视觉规范 P1）：该屏是"空屏"——仅含口号原文，不得叠加任何其他模块、
+ * 卡片或影像；前后留整屏级空白。庄重感来自留白与停顿。
+ *
+ * 排版：四句竖排左对齐，行距 1.8–2.0；关键词「祖国/事业/科技」品牌渐变强调；
+ * 移动端同一顺序竖排，不省略、不合并任何一句（REQ-009）。
+ *
+ * 动效：进入视口后四句依次点亮，间隔 250ms，整体 ≤1200ms；
+ * prefers-reduced-motion 下四句同时静态呈现（CSS 全局降级 + is-lit 类兜底）。
+ * 文字与 PRD 附录 E 一字不差，数据取自 src/data/home.json。
+ */
+import home from '../../data/home.json';
+
+// 关键词渐变强调映射：按句索引标记需强调的词
+const highlight = ['祖国', '事业', '科技'];
+---
+
+<!-- 口号屏前后各留一屏空白（外层由 index.astro 的分区间距保证） -->
+<section class="flex min-h-screen items-center justify-center px-4 sm:px-6" aria-label="品牌口号">
+  <div id="slogan-screen" class="mx-auto max-w-3xl py-24">
+    {home.slogan.map((line, i) => {
+      // 对含关键词的句子做渐变强调拆分（仅祖国/事业/科技三词）
+      const key = highlight[i];
+      const parts = key ? line.split(key) : null;
+      return (
+        <p class="slogan-line text-[clamp(24px,4.6vw,40px)] leading-[1.9] font-semibold">
+          {parts ? (
+            <>
+              {parts[0]}
+              <span class="brand-gradient-text">{key}</span>
+              {parts[1]}
+            </>
+          ) : (
+            line
+          )}
+        </p>
+      );
+    })}
+  </div>
+</section>
+
+<script>
+  // E15：进入视口 → 依次加 .is-lit 触发点亮过渡；间隔 250ms × 4 句 ≈ 1000ms ≤ 1200ms 达标
+  const screen = document.getElementById('slogan-screen');
+  if (screen) {
+    const lines = screen.querySelectorAll('.slogan-line');
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          lines.forEach((line, i) => {
+            // 减少动画模式下 CSS 已将过渡压缩到 0.15s，此延迟仍成立且文字不损失
+            setTimeout(() => line.classList.add('is-lit'), i * 250);
+          });
+          io.disconnect(); // 只点亮一次，回滚不重复触发
+        });
+      },
+      { threshold: 0.5 }
+    );
+    io.observe(screen);
+  }
+</script>
+
+<style>
+  /* 未点亮：低透明度；点亮后过渡到全亮。无 JS 时四句保持半透明？——不行，
+     无 JS 必须可读：故未点亮态用 0.55 而非 0，保证任何情况下文字可读（REQ-074 精神） */
+  .slogan-line {
+    opacity: 0.55;
+    transition: opacity 400ms ease-out;
+  }
+  .slogan-line.is-lit {
+    opacity: 1;
+  }
+</style>

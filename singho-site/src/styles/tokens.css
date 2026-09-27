@@ -1,0 +1,36 @@
+/**
+ * tokens.css — 品牌设计令牌（唯一可信来源）
+ * 色值严格取自《视觉设计规范 v1.0》2.3 品牌色板，不得自行改动。
+ * 字体栈取自 3.1（全系统字体，不引入外部字体文件）。
+ */
+
+:root {
+  /* ---- 品牌紫蓝体系 ---- */
+  --brand-purple: #b41eec; /* 品牌紫（logo 紫端）—— 仅图形/大字 */
+  --brand-violet: #8a32ef; /* 品牌紫中间调 —— 渐变中点 */
+  --brand-blue: #0e70f2; /* 品牌蓝（logo 蓝端）—— 仅图形/大字 */
+  --brand-gradient: linear-gradient(80deg, #b41eec 0%, #8a32ef 50%, #0e70f2 100%);
+
+  /* 提亮变体 —— 正文/链接/小字必须用这两个（原色对比度不达标） */
+  --brand-purple-300: #c77bff;
+  --brand-blue-300: #6fa8ff;
+
+  --accent-warm: #ffb86b; /* 暖色点缀 —— 金句高亮，占比 ≤2% */
+
+  /* ---- 深空底体系 ---- */
+  --bg-void: #06070f; /* 页面最底层 */
+  --bg-base: #0a0c1a; /* 主背景 */
+  --bg-panel: #12152a; /* 卡片 / 面板 / 导航滚动后 */
+
+  /* ---- 文本 ---- */
+  --text-primary: #f2f4ff;
+  --text-secondary: #a8b0d0;
+  --text-tertiary: #7c85ad;
+
+  --star-core: #f2f6ff; /* 星点最亮处 */
+  --border-subtle: rgba(255, 255, 255, 0.08); /* 分隔线 / 卡片描边 */
+
+  /* ---- 字体栈（视觉规范 3.1）---- */
+  --font-cn: 'PingFang SC', 'HarmonyOS Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-en: Inter, 'SF Pro Display', system-ui, sans-serif;
+}
