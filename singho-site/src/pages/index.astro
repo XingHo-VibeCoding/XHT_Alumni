@@ -20,8 +20,8 @@ import SloganScreen from '../components/home/SloganScreen.astro';
   <!-- 首屏：品牌三件套 + 品牌理念 -->
   <BrandTrio />
 
-  <!-- 口号屏前的整屏级空白（视觉规范：口号屏前后留白即庄重感） -->
-  <div class="h-24 sm:h-40" aria-hidden="true"></div>
+  <!-- 板块间留白：2026-09-28 按 Dragon 指示缩小，避免滚动时过于空旷 -->
+  <div class="h-8 sm:h-12" aria-hidden="true"></div>
 
   <!-- 第二屏：团队概览 -->
   <TeamStats />
@@ -29,8 +29,8 @@ import SloganScreen from '../components/home/SloganScreen.astro';
   <!-- 第三屏：文化内核 -->
   <Culture />
 
-  <!-- 口号屏前的整屏级空白 -->
-  <div class="h-24 sm:h-40" aria-hidden="true"></div>
+  <!-- 口号屏前留白：适度保留呼吸感（口号屏仍为独立一屏，REQ-008） -->
+  <div class="h-12 sm:h-20" aria-hidden="true"></div>
 
   <!-- 独立口号屏 -->
   <SloganScreen />

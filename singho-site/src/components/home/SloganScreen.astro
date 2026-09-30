@@ -5,57 +5,91 @@
  * 硬约束（视觉规范 P1）：该屏是"空屏"——仅含口号原文，不得叠加任何其他模块、
  * 卡片或影像；前后留整屏级空白。庄重感来自留白与停顿。
  *
- * 排版：四句竖排左对齐，行距 1.8–2.0；关键词「祖国/事业/科技」品牌渐变强调；
- * 移动端同一顺序竖排，不省略、不合并任何一句（REQ-009）。
+ * 排版（2026-09-28 Dragon 指示更新）：四句去逗号、以短句并列竖排展示；
+ * 关键词「祖国/事业/科技」品牌渐变强调；移动端同一顺序竖排，不省略、不合并任何一句（REQ-009）。
+ * 数据源 home.json 仍保留附录 E 原文（含逗号），去逗号只发生在渲染层。
  *
- * 动效：进入视口后四句依次点亮，间隔 250ms，整体 ≤1200ms；
- * prefers-reduced-motion 下四句同时静态呈现（CSS 全局降级 + is-lit 类兜底）。
- * 文字与 PRD 附录 E 一字不差，数据取自 src/data/home.json。
+ * 动效（2026-09-30 定稿：Dragon 从六方案对比中拍板「方案 F = A+D 逐字聚焦」，
+ * 并指示速度放慢 1.5 倍、字号放大 1.5 倍）：
+ * - 字级动画：每字从 8px 模糊 + 下沉 0.5em 逐字聚焦清晰；
+ *   时长 ×1.5（0.82~0.9s）、字间 68ms、句间 390ms 错峰（原 45/260 的 1.5 倍），整体约 2.4s；
+ * - 字号 clamp(44px, 9.75vw, 96px) = 原 clamp(36px,6.5vw,64px) 的 1.5 倍；
+ *   下限取 44px（而非 54px）是 320px 窄视口防溢出保护，中屏/桌面段严格 1.5 倍；
+ * - 拆字在服务端（本组件 frontmatter）完成，运行时零拆字、零依赖；
+ *   强调字内联 background-size/position 偏移，使相邻渐变字拼回一条连续渐变
+ *   （SplitType + 渐变文字的标准处理手法，见 docs/设计效果图/口号屏入场特效方案对比.html）；
+ * - 无 JS 兜底：未点亮态仅在 .fx-armed（脚本执行成功后）生效，
+ *   无 JS / 脚本失败时四句静态全显（REQ-074 精神）；
+ * - prefers-reduced-motion：动画全关，四句直接完整呈现（TCD 7.4 降级规格）；
+ * - ⚠️ 视觉规范 E15「依次点亮整体 ≤1200ms」随本次放慢至约 2.4s，规范文档待同步更新。
  */
 import home from '../../data/home.json';
 
 // 关键词渐变强调映射：按句索引标记需强调的词
 const highlight = ['祖国', '事业', '科技'];
+
+// 渲染层去逗号（Dragon 2026-09-28 指示：四句以无标点短句并列展示）
+const sloganLines = home.slogan.map((line) => line.replace('，', ''));
+
+// ===== 方案 F 逐字聚焦：渲染层拆字 =====
+// 每句拆为字符单元并标记是否属于渐变关键词；hl 字带组内序号 j 与总数 n，
+// 模板据此内联 background 偏移，保证「祖国/事业/科技」两字渐变连续不断裂
+const sloganChars = sloganLines.map((line, i) => {
+  const key = highlight[i];
+  if (key && line.includes(key)) {
+    const [before, after] = line.split(key);
+    return [
+      ...[...before].map((ch) => ({ ch, hl: false, j: 0, n: 0 })),
+      ...[...key].map((ch, j) => ({ ch, hl: true, j, n: key.length })),
+      ...[...after].map((ch) => ({ ch, hl: false, j: 0, n: 0 })),
+    ];
+  }
+  return [...line].map((ch) => ({ ch, hl: false, j: 0, n: 0 }));
+});
+
+// 错峰节奏（放慢 1.5 倍）：句间 390ms、字间 68ms；delay = 句序×390 + 句内字序×68
+const LINE_STEP = 390;
+const CHAR_STEP = 68;
 ---
 
-<!-- 口号屏前后各留一屏空白（外层由 index.astro 的分区间距保证） -->
+<!-- 口号屏前后留白由 index.astro 的分区间距保证 -->
 <section class="flex min-h-screen items-center justify-center px-4 sm:px-6" aria-label="品牌口号">
-  <div id="slogan-screen" class="mx-auto max-w-3xl py-24">
-    {home.slogan.map((line, i) => {
-      // 对含关键词的句子做渐变强调拆分（仅祖国/事业/科技三词）
-      const key = highlight[i];
-      const parts = key ? line.split(key) : null;
-      return (
-        <p class="slogan-line text-[clamp(24px,4.6vw,40px)] leading-[1.9] font-semibold">
-          {parts ? (
-            <>
-              {parts[0]}
-              <span class="brand-gradient-text">{key}</span>
-              {parts[1]}
-            </>
+  <div id="slogan-screen" class="mx-auto max-w-4xl py-20">
+    {sloganChars.map((chars, li) => (
+      <p class="slogan-line text-[clamp(44px,9.75vw,96px)] leading-[1.8] font-semibold">
+        {chars.map(({ ch, hl, j, n }, ci) => {
+          // 每字入场延迟：句间 390ms + 字间 68ms（CSS transition-delay 读取 --d）
+          const d = `--d:${li * LINE_STEP + ci * CHAR_STEP}ms`;
+          // 强调字：内联渐变偏移（n 倍背景宽 + 左移 j 个字位）拼回连续渐变
+          return hl ? (
+            <span
+              class="char char-hl"
+              style={`${d}; background-size:${n * 100}% 100%; background-position:${-j * 100}% 0;`}
+            >
+              {ch}
+            </span>
           ) : (
-            line
-          )}
-        </p>
-      );
-    })}
+            <span class="char" style={d}>{ch}</span>
+          );
+        })}
+      </p>
+    ))}
   </div>
 </section>
 
 <script>
-  // E15：进入视口 → 依次加 .is-lit 触发点亮过渡；间隔 250ms × 4 句 ≈ 1000ms ≤ 1200ms 达标
+  // 方案 F 触发逻辑（比原句级 setTimeout 更简：延迟全部由 CSS --d 承担）：
+  // 1) 脚本执行成功 → 加 .fx-armed「武装」动画（无 JS / 脚本失败时四句静态全显兜底）
+  // 2) 进入视口 → 加 .is-lit，所有字按各自 --d 错峰聚焦
   const screen = document.getElementById('slogan-screen');
   if (screen) {
-    const lines = screen.querySelectorAll('.slogan-line');
+    screen.classList.add('fx-armed');
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
           if (!e.isIntersecting) return;
-          lines.forEach((line, i) => {
-            // 减少动画模式下 CSS 已将过渡压缩到 0.15s，此延迟仍成立且文字不损失
-            setTimeout(() => line.classList.add('is-lit'), i * 250);
-          });
-          io.disconnect(); // 只点亮一次，回滚不重复触发
+          screen.classList.add('is-lit');
+          io.disconnect(); // 只触发一次，回滚不重复播放
         });
       },
       { threshold: 0.5 }
@@ -65,13 +99,42 @@ const highlight = ['祖国', '事业', '科技'];
 </script>
 
 <style>
-  /* 未点亮：低透明度；点亮后过渡到全亮。无 JS 时四句保持半透明？——不行，
-     无 JS 必须可读：故未点亮态用 0.55 而非 0，保证任何情况下文字可读（REQ-074 精神） */
-  .slogan-line {
-    opacity: 0.55;
-    transition: opacity 400ms ease-out;
+  /* ===== 方案 F · 逐字聚焦入场（A 逐字错峰 × D 模糊聚焦）=====
+     未点亮态只对 .fx-armed 生效：无 JS / 脚本失败时不隐藏任何文字（REQ-074 精神）。
+     速度按 Dragon 2026-09-30 指示放慢 1.5 倍：时长 0.82~0.9s、字间 68ms、句间 390ms */
+  .fx-armed .slogan-line .char {
+    display: inline-block;
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(0.5em);
+    transition:
+      opacity 0.82s ease-out,
+      filter 0.9s ease-out,
+      transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--d, 0ms);
+    will-change: opacity, filter, transform;
   }
-  .slogan-line.is-lit {
+  .fx-armed.is-lit .slogan-line .char {
     opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+
+  /* 强调字：品牌渐变文字（连续性由内联 background-size/position 偏移保证） */
+  .char-hl {
+    background-image: linear-gradient(80deg, #B41EEC 0%, #8A32EF 50%, #0E70F2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* 减少动态效果：动画全关，四句直接静态完整呈现（TCD 7.4） */
+  @media (prefers-reduced-motion: reduce) {
+    .fx-armed .slogan-line .char {
+      opacity: 1;
+      filter: none;
+      transform: none;
+      transition: none;
+    }
   }
 </style>

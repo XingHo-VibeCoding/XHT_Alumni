@@ -8,9 +8,9 @@ html {
 }
 
 body {
-  /* 深空底：最底层 --bg-void，主背景 --bg-base，用纵向渐变模拟深空纵深 */
-  background: linear-gradient(180deg, var(--bg-void) 0%, var(--bg-base) 100%);
-  background-attachment: fixed;
+  /* 兜底底色：防止任何环境下露白。主背景由 .site-bg 固定层承担
+     （2026-09-29 修复：原 body 渐变 + fixed attachment 在 iOS 与整页渲染下不铺满） */
+  background-color: var(--bg-void);
   color: var(--text-primary);
   font-family: var(--font-cn);
   line-height: 1.7;
@@ -39,6 +39,110 @@ body {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+/* ---- 全站星空背景层（2026-09-28 重做：纯星空风格） ----
+   三层结构：.site-bg 本体画星云辉光，::before 密集小星，::after 稀疏亮星（带微闪烁）。
+   整层 fixed 垫底（z-index:-1），不影响任何交互与排版 */
+.site-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  /* 深空底渐变（原 body 职责移交至此）+ 星云辉光：固定层永远铺满视口 */
+  background-color: var(--bg-void);
+  background-image:
+    linear-gradient(180deg, var(--bg-void) 0%, var(--bg-base) 100%),
+    radial-gradient(55vw 40vh at 14% 10%, rgba(138, 50, 239, 0.18), transparent 70%),
+    radial-gradient(50vw 42vh at 86% 38%, rgba(14, 112, 242, 0.14), transparent 70%),
+    radial-gradient(60vw 35vh at 50% 96%, rgba(90, 40, 200, 0.12), transparent 72%);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/* 密集小星：一层细碎星点，平铺整个视口 */
+.site-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.7;
+  background-image:
+    radial-gradient(1px 1px at 12% 24%, var(--star-core) 50%, transparent 51%),
+    radial-gradient(1px 1px at 68% 12%, rgba(242, 246, 255, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 84% 62%, rgba(242, 246, 255, 0.9) 50%, transparent 51%),
+    radial-gradient(1px 1px at 32% 74%, rgba(199, 123, 255, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 52% 44%, rgba(242, 246, 255, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 8% 82%, rgba(111, 168, 255, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 44% 90%, rgba(242, 246, 255, 0.8) 50%, transparent 51%),
+    radial-gradient(1px 1px at 92% 78%, rgba(242, 246, 255, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 26% 8%, rgba(111, 168, 255, 0.7) 50%, transparent 51%),
+    radial-gradient(1px 1px at 74% 46%, rgba(242, 246, 255, 0.8) 50%, transparent 51%);
+  background-size: 560px 420px;
+}
+
+/* 稀疏亮星：更大更亮，带十字星光晕；整层缓慢闪烁（呼吸感） */
+.site-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.9;
+  background-image:
+    radial-gradient(
+      2.5px 2.5px at 22% 32%,
+      #fff 30%,
+      rgba(111, 168, 255, 0.5) 55%,
+      transparent 62%
+    ),
+    radial-gradient(
+      2px 2px at 78% 18%,
+      #fff 30%,
+      rgba(199, 123, 255, 0.5) 55%,
+      transparent 62%
+    ),
+    radial-gradient(
+      3px 3px at 62% 70%,
+      #fff 30%,
+      rgba(111, 168, 255, 0.45) 55%,
+      transparent 62%
+    ),
+    radial-gradient(
+      2px 2px at 38% 58%,
+      rgba(242, 246, 255, 0.95) 30%,
+      rgba(138, 50, 239, 0.4) 55%,
+      transparent 62%
+    ),
+    radial-gradient(
+      2.5px 2.5px at 90% 84%,
+      #fff 30%,
+      rgba(111, 168, 255, 0.5) 55%,
+      transparent 62%
+    ),
+    radial-gradient(
+      2px 2px at 6% 56%,
+      rgba(242, 246, 255, 0.95) 30%,
+      rgba(199, 123, 255, 0.45) 55%,
+      transparent 62%
+    );
+  background-size: 900px 680px;
+  animation: star-twinkle 6s ease-in-out infinite alternate;
+}
+
+/* 亮星层呼吸闪烁：仅透明度变化，性能友好 */
+@keyframes star-twinkle {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 0.95;
+  }
+}
+
+/* 减少动画模式：停闪，保持静态星空（文字信息零损失） */
+@media (prefers-reduced-motion: reduce) {
+  .site-bg::after {
+    animation: none !important;
+    opacity: 0.8;
+  }
 }
 
 /* ---- E14 减少动画：全站降级（opacity 变化且 ≤150ms）---- */

@@ -2,38 +2,51 @@
 /**
  * Nav.astro — 全站固定顶部导航栏（REQ-006，视觉规范组件规格）
  * 高 64px；滚动过首屏后背景变 rgba(10,12,26,0.85) + 背景模糊。
- * TODO: 星图/分享/金句/经历/校友会页面尚未创建，暂用 "#" 占位，页面模块完成后再替换真实路由。
+ *
+ * 2026-09-28 优化（Dragon 指示）：
+ * - 每个导航项加背景底板；当前页导航项用品牌渐变描边框 + 辉光突出；
+ * - 新增「首页」导航项用于承载"当前页高亮"（对 PRD IA 表的最小偏离，原首页入口为 Logo）；
+ * - 其余页面未创建，仍用 "#" 占位（永不激活）。
  */
 import logo from '../../assets/logo/monkey-head.svg';
 
-// 导航项与 PRD 第 8 章信息架构一致（6 项不膨胀；/values 不经主导航）
+// 导航项定义
 const links = [
+  { label: '首页', href: '/' },
   { label: '星图', href: '#' },
   { label: '分享', href: '#' },
   { label: '金句', href: '#' },
   { label: '经历', href: '#' },
   { label: '校友会', href: '#' },
 ];
+
+// 当前页判定：真实路由才参与匹配；"#" 占位项永不激活
+const current = Astro.url.pathname;
+const isActive = (href: string) =>
+  href === '/' ? current === '/' : href !== '#' && current.startsWith(href);
 ---
 
 <header id="site-nav" class="fixed inset-x-0 top-0 z-40">
   <nav class="relative mx-auto h-16 max-w-6xl px-4 sm:px-6" aria-label="主导航">
-    <!-- 品牌入口：猴头标 + 中文名（点击回首页），保持居左 -->
+    <!-- 品牌入口：猴头标 + 中文名（点击回首页），保持居左
+         移动端只留图标（文字隐藏），把横向空间让给导航组，避免遮挡 -->
     <a href="/" class="flex h-full items-center gap-2.5" aria-label="星禾科技 首页">
-      <img src={logo.src} alt="星禾科技标识" width="28" height="30" class="h-[30px] w-auto" />
-      <span class="text-base font-semibold tracking-wide">星禾科技</span>
+      <img src={logo.src} alt="星禾科技标识" width="28" height="30" class="h-[30px] w-auto shrink-0" />
+      <span class="hidden text-base font-semibold tracking-wide sm:inline">星禾科技</span>
     </a>
 
-    <!-- 导航链接组：绝对定位水平居中于整条导航栏（2026-09-27 效果图确认稿） -->
+    <!-- 导航链接组：绝对定位水平居中于整条导航栏
+         移动端隐藏「首页」项（Logo 即首页入口），5 项压缩后与品牌图标互不遮挡 -->
     <ul class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 sm:gap-2">
       {links.map((l) => (
-        <li>
-          <!-- 次要文本色，悬停提亮 -->
+        <li class:list={[l.href === '/' && 'max-sm:hidden']}>
           <a
             href={l.href}
-            class="rounded-md px-2.5 py-2 text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] sm:px-3"
+            aria-current={isActive(l.href) ? 'page' : undefined}
+            class:list={['nav-item', { 'is-active': isActive(l.href) }]}
           >
-            {l.label}
+            <!-- 内层反斜切：底板斜切后文字保持正立 -->
+            <span class="nav-label">{l.label}</span>
           </a>
         </li>
       ))}
@@ -67,5 +80,53 @@ const links = [
     background-color: rgba(10, 12, 26, 0.85);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /* ---- 导航项：统一背景底板（平行四边形斜切造型，2026-09-28 Dragon 指示） ---- */
+  .nav-item {
+    display: inline-block;
+    padding: 7px 14px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    /* 斜切：整体 -12°，内层文字 +12° 反向回正 */
+    transform: skewX(-12deg);
+    /* 半透明白底板 + 细描边，在深空底上形成"斜切胶囊"底板 */
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-subtle);
+    transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease,
+      box-shadow 150ms ease, transform 150ms ease;
+  }
+  .nav-item .nav-label {
+    display: inline-block;
+    transform: skewX(12deg); /* 反向斜切让文字保持正立 */
+  }
+  .nav-item:hover {
+    color: var(--text-primary);
+    border-color: rgba(111, 168, 255, 0.45); /* 品牌蓝·亮 45%，悬停提示 */
+    background-color: rgba(255, 255, 255, 0.08);
+    transform: skewX(-12deg) translateY(-1px);
+  }
+
+  /* ---- 当前页：品牌渐变描边框 + 辉光（醒目框式提示） ----
+     双层背景实现渐变描边：外层渐变做边框色，内层回填深空底色 */
+  .nav-item.is-active {
+    color: var(--text-primary);
+    font-weight: 600;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--bg-panel), var(--bg-panel)) padding-box,
+      var(--brand-gradient) border-box;
+    box-shadow:
+      0 0 14px rgba(138, 50, 239, 0.4),
+      0 0 4px rgba(14, 112, 242, 0.3);
+  }
+
+  /* ---- 移动端（<640px）：压缩导航项尺寸，配合品牌图标让出空间 ---- */
+  @media (max-width: 639px) {
+    .nav-item {
+      padding: 5px 8px;
+      font-size: 12px;
+    }
   }
 </style>
