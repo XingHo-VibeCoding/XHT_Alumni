@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>口号屏四句话 · 入场特效方案对比 · 星禾科技</title>
+<style>
+  :root {
+    --brand-purple: #B41EEC; --brand-violet: #8A32EF; --brand-blue: #0E70F2;
+    --bg-void: #06070F; --bg-base: #0A0C1A; --bg-panel: #12152A;
+    --text-primary: #F2F4FF; --text-secondary: #A8B0D0; --text-tertiary: #7C85AD;
+    --brand-purple-300: #C77BFF; --brand-blue-300: #6FA8FF;
+    --border-subtle: rgba(255,255,255,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: linear-gradient(180deg, var(--bg-void), var(--bg-base));
+    color: var(--text-primary);
+    font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    line-height: 1.7; padding: 40px 16px 80px;
+  }
+  h1 { text-align: center; font-size: 26px; margin-bottom: 8px; }
+  .intro { text-align: center; color: var(--text-tertiary); font-size: 14px; margin-bottom: 40px; }
+
+  .demo { max-width: 1000px; margin: 0 auto 48px; border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; background: var(--bg-panel); }
+  .demo-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-subtle); }
+  .chip { font-size: 13px; padding: 3px 12px; border-radius: 12px; background: rgba(138,50,239,0.18); color: var(--brand-purple-300); }
+  .demo-head b { font-size: 16px; }
+  .src { margin-left: auto; font-size: 12px; color: var(--text-tertiary); }
+  .demo-body { position: relative; min-height: 380px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(60% 80% at 50% 40%, rgba(138,50,239,0.10), transparent 70%), var(--bg-void); }
+  .desc { padding: 12px 20px 16px; font-size: 13px; color: var(--text-secondary); border-top: 1px dashed var(--border-subtle); }
+  .desc em { color: var(--brand-blue-300); font-style: normal; }
+
+  /* 重播按钮：每个卡片可反复触发 */
+  .replay { position: absolute; right: 16px; bottom: 14px; font-size: 12px; color: var(--text-tertiary); background: rgba(255,255,255,0.06); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 5px 14px; cursor: pointer; transition: all .2s ease; z-index: 2; }
+  .replay:hover { color: var(--text-primary); border-color: rgba(199,123,255,.5); }
+
+  /* 四句话排版（与正式站一致：clamp 字号 / 行高 1.8 / 渐变关键词） */
+  .slogan { text-align: left; max-width: 720px; width: 100%; padding: 40px; }
+  .line { font-size: clamp(34px, 5.5vw, 58px); line-height: 1.8; font-weight: 600; letter-spacing: 0.04em; }
+  .kw, .kw-char {
+    background-image: linear-gradient(80deg, #B41EEC 0%, #8A32EF 50%, #0E70F2 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  /* ===== 方案 A：逐字上浮（SplitType / GSAP SplitText 同款 stagger） ===== */
+  .fx-a .char { display: inline-block; opacity: 0; transform: translateY(0.85em);
+    transition: opacity .45s ease-out, transform .55s cubic-bezier(.22,1,.36,1);
+    transition-delay: var(--d, 0ms); will-change: transform; }
+  .fx-a.play .char { opacity: 1; transform: none; }
+
+  /* ===== 方案 B：两侧汇入（奇数句从左、偶数句从右） ===== */
+  .fx-b .line { opacity: 0; transition: opacity .6s ease-out, transform .7s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0ms); }
+  .fx-b .line:nth-child(odd)  { transform: translateX(-72px); }
+  .fx-b .line:nth-child(even) { transform: translateX(72px); }
+  .fx-b.play .line { opacity: 1; transform: none; }
+
+  /* ===== 方案 C：遮罩揭示（行框裁剪，文字从下方升起） ===== */
+  .fx-c .line { overflow: hidden; }
+  .fx-c .mask-inner { display: block; transform: translateY(112%); transition: transform .75s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0ms); }
+  .fx-c.play .mask-inner { transform: none; }
+
+  /* ===== 方案 D：模糊聚焦（Apple 官网风：朦胧 → 清晰） ===== */
+  .fx-d .line { opacity: 0; filter: blur(12px); transform: translateY(16px);
+    transition: opacity .8s ease-out, filter .8s ease-out, transform .8s ease-out; transition-delay: var(--d, 0ms); }
+  .fx-d.play .line { opacity: 1; filter: blur(0); transform: none; }
+
+  /* ===== 方案 E：A+C 组合 = 遮罩裁剪 + 逐字错峰（逐字从行框"地平线"下升起） =====
+     行框 overflow:hidden 兜住未入场的字；每个字从行框下方 translateY(112%) 升起，
+     字间错峰 45ms——C 的利落仪式 + A 的逐字节奏融合，无淡入无模糊，最纯净 */
+  .fx-e .line { overflow: hidden; }
+  .fx-e .char { display: inline-block; transform: translateY(112%);
+    transition: transform .6s cubic-bezier(.22,1,.36,1); transition-delay: var(--d, 0ms); }
+  .fx-e.play .char { transform: none; }
+
+  /* ===== 方案 F：A+D 组合 = 逐字聚焦（每字模糊+微沉 → 清晰浮起，字间错峰） ===== */
+  .fx-f .char { display: inline-block; opacity: 0; filter: blur(8px); transform: translateY(0.5em);
+    transition: opacity .55s ease-out, filter .6s ease-out, transform .6s cubic-bezier(.22,1,.36,1);
+    transition-delay: var(--d, 0ms); }
+  .fx-f.play .char { opacity: 1; filter: blur(0); transform: none; }
+
+  /* 无障碍：减少动态效果 → 全部直接呈现（与正式站 TCD 7.4 降级规格一致） */
+  @media (prefers-reduced-motion: reduce) {
+    .fx-a .char, .fx-b .line, .fx-c .mask-inner, .fx-d .line, .fx-e .char, .fx-f .char {
+      opacity: 1 !important; transform: none !important; filter: none !important; transition: none !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>口号屏 · 四句话入场特效六方案对比</h1>
+<p class="intro">以下六个方案都是真实运行效果（卡片滚入视口自动播放一次，右下角「重播」可反复看）· E/F 为组合方案 · 选定后落地到 SloganScreen.astro</p>
+
+<!-- 方案 A -->
+<div class="demo fx-a">
+  <div class="demo-head">
+    <span class="chip">方案 A</span><b>逐字上浮 · Character Stagger</b>
+    <span class="src">参考：SplitType（lukePeavey/SplitType，MIT）/ GSAP SplitText</span>
+  </div>
+  <div class="demo-body">
+    <div class="slogan">
+      <p class="line split-chars">此生属于<span class="kw">祖国</span></p>
+      <p class="line split-chars">此生属于<span class="kw">事业</span></p>
+      <p class="line split-chars">此生属于<span class="kw">科技</span></p>
+      <p class="line split-chars">此生无怨无悔</p>
+    </div>
+    <button class="replay" data-replay>↻ 重播</button>
+  </div>
+  <div class="desc">每句话拆成单字，逐字向上浮起并淡入：字间错峰 45ms、句间错峰 260ms——像文字被逐个"写"上屏幕。<em>目前高级感最强、最主流的方案</em>（GSAP SplitText / SplitType 同款模式），Apple、Vercel 等官网大量使用，四句话"依次点亮"的节奏感最强。</div>
+</div>
+
+<!-- 方案 B -->
+<div class="demo fx-b">
+  <div class="demo-head">
+    <span class="chip">方案 B</span><b>两侧汇入 · Slide In</b>
+    <span class="src">参考：AOS「fade-left / fade-right」模式 / GSAP from() 编排常见手法</span>
+  </div>
+  <div class="demo-body">
+    <div class="slogan">
+      <p class="line">此生属于<span class="kw">祖国</span></p>
+      <p class="line">此生属于<span class="kw">事业</span></p>
+      <p class="line">此生属于<span class="kw">科技</span></p>
+      <p class="line">此生无怨无悔</p>
+    </div>
+    <button class="replay" data-replay>↻ 重播</button>
+  </div>
+  <div class="desc">你提的方向：奇数句从左侧滑入、偶数句从右侧滑入，向中线汇聚，句间错峰。<em>动态方向感最强</em>，有"四面汇成一句话"的凝聚力意象，与"此生属于——"的排比句式呼应。代价是横向位移较抢眼，庄重感略低于 A / C。</div>
+</div>
+
+<!-- 方案 C -->
+<div class="demo fx-c">
+  <div class="demo-head">
+    <span class="chip">方案 C</span><b>遮罩揭示 · Line Mask Reveal</b>
+    <span class="src">参考：Awwwards 获奖站通行的 line mask reveal（GSAP 文字揭示教程同款）</span>
+  </div>
+  <div class="demo-body">
+    <div class="slogan">
+      <p class="line"><span class="mask-inner">此生属于<span class="kw">祖国</span></span></p>
+      <p class="line"><span class="mask-inner">此生属于<span class="kw">事业</span></span></p>
+      <p class="line"><span class="mask-inner">此生属于<span class="kw">科技</span></span></p>
+      <p class="line"><span class="mask-inner">此生无怨无悔</span></p>
+    </div>
+    <button class="replay" data-replay>↻ 重播</button>
+  </div>
+  <div class="desc">每句外面罩一个隐形"窗口"，文字从窗口底部缓缓升起，像从地平线下浮出来。<em>最利落、最编辑杂志风</em>——文字本身无位移无模糊，只有"出现"的仪式。与口号屏的庄重留白气质最搭；工程上也最稳（不拆字，渐变关键词零风险）。</div>
+</div>
+
+<!-- 方案 D -->
+<div class="demo fx-d">
+  <div class="demo-head">
+    <span class="chip">方案 D</span><b>模糊聚焦 · Blur Focus</b>
+    <span class="src">参考：Apple 官网产品页文字入场（blur + 位移淡入）</span>
+  </div>
+  <div class="demo-body">
+    <div class="slogan">
+      <p class="line">此生属于<span class="kw">祖国</span></p>
+      <p class="line">此生属于<span class="kw">事业</span></p>
+      <p class="line">此生属于<span class="kw">科技</span></p>
+      <p class="line">此生无怨无悔</p>
+    </div>
+    <button class="replay" data-replay>↻ 重播</button>
+  </div>
+  <div class="desc">每句从 12px 高斯模糊 + 半透明"聚焦"成清晰文字，句间错峰。<em>朦胧到清晰的过程自带"点亮"感</em>，与现有"依次点亮"语义衔接最自然（相当于把现在的纯淡入升级成聚焦）。改动最小：现有结构和触发逻辑全部保留，只换 CSS。</div>
+</div>
+
+<!-- 方案 E：A+C 组合 -->
+<div class="demo fx-e">
+  <div class="demo-head">
+    <span class="chip">方案 E</span><b>A+C 组合 · 遮罩 + 逐字升起</b>
+    <span class="src">C 的行框遮罩 × A 的字间 45ms 错峰（真实叠加态）</span>
+  </div>
+  <div class="demo-body">
+    <div class="slogan">
+      <p class="line split-chars">此生属于<span class="kw">祖国</span></p>
+      <p class="line split-chars">此生属于<span class="kw">事业</span></p>
+      <p class="line split-chars">此生属于<span class="kw">科技</span></p>
+      <p class="line split-chars">此生无怨无悔</p>
+    </div>
+    <button class="replay" data-replay>↻ 重播</button>
+  </div>
+  <div class="desc">C 和 A 的自然融合：每句有隐形"窗口"，<em>每个字从窗口底部逐个升起</em>（字间 45ms、句间 260ms 错峰）——文字无淡入、无模糊，消失与出现都被行框利落地裁掉。既有 A 的逐字节奏感，又保住 C 的纯净庄重；关键词渐变已做逐字连续性对齐。</div>
+</div>
+
+<!-- 方案 F：A+D 组合 -->
+<div class="demo fx-f">
+  <div class="demo-head">
+    <span class="chip">方案 F</span><b>A+D 组合 · 逐字聚焦</b>
+    <span class="src">A 的字间错峰 × D 的模糊聚焦（真实叠加态）</span>
+  </div>
+  <div class="demo-body">
+    <div class="slogan">
+      <p class="line split-chars">此生属于<span class="kw">祖国</span></p>
+      <p class="line split-chars">此生属于<span class="kw">事业</span></p>
+      <p class="line split-chars">此生属于<span class="kw">科技</span></p>
+      <p class="line split-chars">此生无怨无悔</p>
+    </div>
+    <button class="replay" data-replay>↻ 重播</button>
+  </div>
+  <div class="desc">D 的聚焦下放到字级：每个字从 8px 模糊 + 轻微下沉状态<em>逐字聚焦清晰</em>（字间 45ms、句间 260ms 错峰），像镜头逐字对焦。全场科技感最强的入场，与"依次点亮"语义和首页星空氛围衔接最顺；渐变关键词同样已做连续性对齐。</div>
+</div>
+
+<p class="intro">六个方案均可调节速度 / 错峰间隔 / 位移幅度 · 组合推荐：纯净庄重选 <b style="color:var(--brand-purple-300)">E（A+C）</b>，科技感最强选 <b style="color:var(--brand-purple-300)">F（A+D）</b> · 选定后告知，落地约 30 分钟</p>
+
+<script>
+  // ===== A 方案：把 .split-chars 行拆成单字 span（保留 kw 渐变嵌套结构） =====
+  function splitChars(root) {
+    [...root.childNodes].forEach((child) => {
+      if (child.nodeType === 3) { // 文本节点 → 逐字包裹
+        const frag = document.createDocumentFragment();
+        for (const ch of child.textContent) {
+          const s = document.createElement('span');
+          s.className = 'char';
+          s.textContent = ch;
+          frag.appendChild(s);
+        }
+        root.replaceChild(frag, child);
+      } else if (child.nodeType === 1) {
+        splitChars(child); // 元素节点（kw 渐变 span）递归深入
+      }
+    });
+  }
+
+  // ===== 预处理：拆字 + 渐变对齐 + 错峰延迟 =====
+  document.querySelectorAll('.demo').forEach((demo) => {
+    // A：拆字
+    demo.querySelectorAll('.split-chars').forEach((line) => splitChars(line));
+    // A：kw 渐变连续性对齐——char 各自带 transform 时父级 background-clip 裁剪不跟随，
+    // 做法：给 kw 内每个 char 复制渐变，background-size 拉长 n 倍、position 逐字左移，
+    // 使 n 个字拼回一条连续渐变（SplitType + 渐变文字的标准处理手法）
+    demo.querySelectorAll('.kw').forEach((kw) => {
+      const chars = kw.querySelectorAll('.char');
+      const n = chars.length;
+      chars.forEach((c, i) => {
+        c.classList.add('kw-char');
+        c.style.backgroundSize = `${n * 100}% 100%`;
+        c.style.backgroundPosition = `${-i * 100}% 0`;
+      });
+    });
+    // A：字级错峰延迟（句间 260ms + 字间 45ms）
+    demo.querySelectorAll('.split-chars').forEach((line, li) => {
+      line.querySelectorAll('.char').forEach((ch, ci) => {
+        ch.style.setProperty('--d', `${li * 260 + ci * 45}ms`);
+      });
+    });
+    // B/C/D：句级错峰延迟（C 的动画在 .mask-inner 上，var 从 .line 继承）
+    demo.querySelectorAll('.line').forEach((line, li) => {
+      if (!line.classList.contains('split-chars')) line.style.setProperty('--d', `${li * 260}ms`);
+    });
+  });
+
+  // ===== 播放控制：进入视口自动播放一次；重播按钮重新触发 =====
+  const io = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('play');
+        io.unobserve(e.target); // 只自动播一次，之后用重播按钮
+      });
+    },
+    { threshold: 0.45 }
+  );
+  document.querySelectorAll('.demo').forEach((d) => io.observe(d));
+
+  document.querySelectorAll('[data-replay]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const demo = btn.closest('.demo');
+      demo.classList.remove('play');
+      void demo.offsetWidth; // 强制 reflow，重置所有 transition
+      demo.classList.add('play');
+    });
+  });
+</script>
+</body>
+</html>

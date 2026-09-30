@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>首屏标题特效方案对比 · 星禾科技</title>
+<style>
+  :root {
+    --brand-purple: #B41EEC; --brand-violet: #8A32EF; --brand-blue: #0E70F2;
+    --brand-gradient: linear-gradient(80deg, #B41EEC 0%, #8A32EF 50%, #0E70F2 100%);
+    --bg-void: #06070F; --bg-base: #0A0C1A; --bg-panel: #12152A;
+    --text-primary: #F2F4FF; --text-secondary: #A8B0D0; --text-tertiary: #7C85AD;
+    --brand-purple-300: #C77BFF; --brand-blue-300: #6FA8FF;
+    --border-subtle: rgba(255,255,255,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: linear-gradient(180deg, var(--bg-void), var(--bg-base));
+    color: var(--text-primary);
+    font-family: "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+    line-height: 1.7; padding: 40px 16px 80px;
+  }
+  h1 { text-align: center; font-size: 26px; margin-bottom: 8px; }
+  .intro { text-align: center; color: var(--text-tertiary); font-size: 14px; margin-bottom: 40px; }
+
+  /* 每个方案一个演示区 */
+  .demo { max-width: 1000px; margin: 0 auto 48px; border: 1px solid var(--border-subtle); border-radius: 16px; overflow: hidden; background: var(--bg-panel); }
+  .demo-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--border-subtle); }
+  .chip { font-size: 13px; padding: 3px 12px; border-radius: 12px; background: rgba(138,50,239,0.18); color: var(--brand-purple-300); }
+  .demo-head b { font-size: 16px; }
+  .src { margin-left: auto; font-size: 12px; color: var(--text-tertiary); }
+  .demo-body { position: relative; min-height: 300px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: radial-gradient(60% 80% at 50% 40%, rgba(138,50,239,0.10), transparent 70%), var(--bg-void); }
+  .desc { padding: 12px 20px 16px; font-size: 13px; color: var(--text-secondary); border-top: 1px dashed var(--border-subtle); }
+  .desc em { color: var(--brand-blue-300); font-style: normal; }
+
+  /* 标题通用 */
+  .title { font-size: clamp(48px, 9vw, 96px); font-weight: 700; letter-spacing: 0.06em; font-style: oblique 10deg; line-height: 1; white-space: nowrap; }
+  .grad-base {
+    background: var(--brand-gradient);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+
+  /* ===== 方案 A：柔光扫过（React Bits ShinyText / Facebook Shimmer 同源） ===== */
+  .fx-a { position: relative; display: inline-block; }
+  .fx-a::after {
+    content: attr(data-text); position: absolute; inset: 0;
+    color: transparent;
+    background-image: linear-gradient(100deg, transparent 42%, rgba(242,246,255,0.9) 50%, rgba(111,168,255,0.75) 55%, transparent 63%);
+    background-size: 220% 100%; background-repeat: no-repeat;
+    -webkit-background-clip: text; background-clip: text;
+    animation: sweep-a 5.5s ease-in-out infinite;
+  }
+  @keyframes sweep-a {
+    0%   { background-position: 130% 0; }
+    32%  { background-position: -30% 0; }
+    100% { background-position: -30% 0; } /* 扫一次后长停顿，克制不抢戏 */
+  }
+
+  /* ===== 方案 B：极光渐变循环（React Bits GradientText 同源） ===== */
+  .fx-b {
+    background: linear-gradient(90deg, #B41EEC 0%, #8A32EF 25%, #0E70F2 50%, #8A32EF 75%, #B41EEC 100%);
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: flow-b 9s ease-in-out infinite;
+    filter: drop-shadow(0 0 22px rgba(138,50,239,0.3));
+  }
+  @keyframes flow-b {
+    0%, 100% { background-position: 0% 50%; }
+    50%      { background-position: 100% 50%; }
+  }
+
+  /* ===== 方案 D：舞台光柱（React Bits LightRays / Beams 思路，纯 CSS） ===== */
+  .fx-d-stage { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  .beam {
+    position: absolute; top: -20%; height: 150%; width: 130px;
+    background: linear-gradient(180deg, rgba(199,123,255,0.28), rgba(111,168,255,0.10) 55%, transparent 80%);
+    filter: blur(26px); transform: skewX(-14deg); mix-blend-mode: screen;
+    animation: beam-d 11s ease-in-out infinite;
+  }
+  .beam.b1 { left: 12%; animation-delay: 0s; }
+  .beam.b2 { left: 46%; background: linear-gradient(180deg, rgba(111,168,255,0.24), rgba(138,50,239,0.08) 55%, transparent 80%); animation-delay: -4s; }
+  .beam.b3 { left: 76%; background: linear-gradient(180deg, rgba(242,246,255,0.16), rgba(111,168,255,0.08) 55%, transparent 80%); animation-delay: -8s; }
+  @keyframes beam-d {
+    0%, 100% { transform: skewX(-14deg) translateX(0); opacity: 0.55; }
+    50%      { transform: skewX(-8deg) translateX(36px); opacity: 0.9; }
+  }
+  .fx-d-stage .title { position: relative; }
+</style>
+</head>
+<body>
+
+<h1>首屏标题特效 · 六方案实时对比</h1>
+<p class="intro">以下六个都是真实运行的效果（非截图），参考自 GitHub 成熟方案，均适配品牌深空紫蓝体系 · E/F 为组合方案 · 选定后我再落地到 singho-site</p>
+
+<!-- 方案 A -->
+<div class="demo">
+  <div class="demo-head">
+    <span class="chip">方案 A</span><b>柔光扫过 · Shimmer</b>
+    <span class="src">参考：React Bits「ShinyText」/ Facebook Shimmer（CSS 经典）</span>
+  </div>
+  <div class="demo-body">
+    <span class="title grad-base fx-a" data-text="星禾科技">星禾科技</span>
+  </div>
+  <div class="desc">一道柔光带每 5.5 秒从左到右扫过一次，其余时间保持安静。<em>大厂官网最常用的"高级感"写法</em>——克制、庄重、零性能负担，与品牌庄重感最兼容。备选：光带只在进入视口时扫一次。</div>
+</div>
+
+<!-- 方案 B -->
+<div class="demo">
+  <div class="demo-head">
+    <span class="chip">方案 B</span><b>极光渐变循环 · Gradient Flow</b>
+    <span class="src">参考：React Bits「GradientText」/ theosoti animated-gradient</span>
+  </div>
+  <div class="demo-body">
+    <span class="title fx-b">星禾科技</span>
+  </div>
+  <div class="desc">品牌紫→蓝渐变在文字内部<em>像极光一样缓慢流动循环</em>，没有突然的光带。文艺、静谧、高级；9 秒一轮几乎察觉不到起点终点。备选：叠加缓慢的辉光呼吸（更"活"一点）。</div>
+</div>
+
+<!-- 方案 C：星尘粒子（canvas） -->
+<div class="demo">
+  <div class="demo-head">
+    <span class="chip">方案 C</span><b>星尘粒子环绕 · Star Dust</b>
+    <span class="src">参考：React Bits「Particles」/ tsParticles（自写 canvas，约 40 行）</span>
+  </div>
+  <div class="demo-body">
+    <canvas id="fx-c" width="960" height="300" style="position:absolute; inset:0; width:100%; height:100%;"></canvas>
+    <span class="title grad-base" style="position:relative;">星禾科技</span>
+  </div>
+  <div class="desc">40 颗品牌色星尘在文字周围缓慢漂浮、明灭，像<em>星从字里长出来</em>。科幻感最强、与首页星空背景浑然一体；也是与未来「星野凝字」粒子岛血缘最近的一版。粒子数/速度/亮度全部可调。</div>
+</div>
+
+<!-- 方案 D -->
+<div class="demo">
+  <div class="demo-head">
+    <span class="chip">方案 D</span><b>舞台光柱 · Light Rays</b>
+    <span class="src">参考：React Bits「LightRays / Beams」思路（纯 CSS 实现）</span>
+  </div>
+  <div class="demo-body">
+    <div class="fx-d-stage">
+      <div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div>
+      <span class="title grad-base">星禾科技</span>
+    </div>
+  </div>
+  <div class="desc">三道柔和光柱从标题后方缓慢摆动，像舞台追光。<em>氛围感、仪式感最强</em>，标题本身保持完全安静；光柱是背景性的，不干扰文字。适合与 A 或 B 叠加成"组合拳"。</div>
+</div>
+
+<!-- 方案 E：A+B 组合 = 文字内部极光渐变流动（B）为底 + 周期性柔光扫过（A）提亮 -->
+<div class="demo">
+  <div class="demo-head">
+    <span class="chip">方案 E</span><b>A+B 组合 · 极光渐变 + 柔光扫过</b>
+    <span class="src">B 渐变流动作文字底色 + A 光带周期扫过（真实叠加态）</span>
+  </div>
+  <div class="demo-body">
+    <!-- fx-b 负责文字内部渐变流动；fx-a 的 ::after 负责周期性扫光；两动画周期（9s / 5.5s）自然错开，不会机械同步 -->
+    <span class="title fx-b fx-a" data-text="星禾科技">星禾科技</span>
+  </div>
+  <div class="desc">文字内部<em>紫蓝渐变像极光一样缓慢流动</em>（B 层），每隔几秒再有一道柔光带从左到右扫过、瞬间提亮（A 层）。流动负责"活"，扫光负责"惊艳一瞬"——两套周期错开，每个循环都不重样。层次最丰富的纯 CSS 方案，零性能负担，亮度比单 A 或单 B 略高（可调）。</div>
+</div>
+
+<!-- 方案 F：A+B+D 组合 = 舞台光柱（D）铺底 + 极光渐变（B）+ 柔光扫过（A），三层叠加 -->
+<div class="demo">
+  <div class="demo-head">
+    <span class="chip">方案 F</span><b>A+B+D 组合 · 光柱舞台 + 极光 + 扫光</b>
+    <span class="src">D 光柱铺背景 + B 渐变流动 + A 光带扫过（三层真实叠加）</span>
+  </div>
+  <div class="demo-body">
+    <div class="fx-d-stage">
+      <div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div>
+      <span class="title fx-b fx-a" data-text="星禾科技">星禾科技</span>
+    </div>
+  </div>
+  <div class="desc">方案 E 的全部效果 + 三道舞台光柱从标题后方缓缓摆动。<em>整套首页的仪式感天花板</em>：背景在动（光柱）、文字底色在动（极光）、高光在动（扫光），三层节奏互不干扰，"发布会开场"级气场。视觉信息量最大的一版；落地时会配套 <code>prefers-reduced-motion</code> 全量降级，移动端弱机自动削减光柱。</div>
+</div>
+
+<p class="intro">以上均可调节速度/亮度/颜色 · 组合推荐：追求稳重耐看选 <b style="color:var(--brand-purple-300)">E（A+B）</b>，追求全场气场选 <b style="color:var(--brand-purple-300)">F（A+B+D）</b> · 选定后告知，落地约 30 分钟</p>
+
+<script>
+  // 方案 C：星尘粒子（约 40 颗，向上缓慢漂浮 + 正弦明灭）
+  const cv = document.getElementById('fx-c');
+  if (cv) {
+    const ctx = cv.getContext('2d');
+    const COLORS = ['242,246,255', '111,168,255', '199,123,255'];
+    // 初始化粒子：随机位置、大小、速度、相位
+    const dots = Array.from({ length: 42 }, () => ({
+      x: Math.random() * cv.width,
+      y: Math.random() * cv.height,
+      r: 0.8 + Math.random() * 1.6,
+      vy: -(0.08 + Math.random() * 0.22),      // 缓慢上浮
+      vx: (Math.random() - 0.5) * 0.1,          // 轻微横漂
+      phase: Math.random() * Math.PI * 2,        // 闪烁相位
+      color: COLORS[(Math.random() * 3) | 0],
+    }));
+    let t = 0;
+    (function frame() {
+      t += 0.016;
+      ctx.clearRect(0, 0, cv.width, cv.height);
+      for (const p of dots) {
+        p.x += p.vx; p.y += p.vy;
+        // 越界回绕
+        if (p.y < -6) { p.y = cv.height + 6; p.x = Math.random() * cv.width; }
+        if (p.x < -6) p.x = cv.width + 6;
+        if (p.x > cv.width + 6) p.x = -6;
+        // 正弦明灭
+        const a = 0.25 + 0.55 * (0.5 + 0.5 * Math.sin(t * 1.4 + p.phase));
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color},${a})`;
+        ctx.fill();
+      }
+      requestAnimationFrame(frame);
+    })();
+  }
+</script>
+</body>
+</html>

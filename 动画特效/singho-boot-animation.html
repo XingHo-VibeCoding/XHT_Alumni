@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>星禾科技 Singho · 开机动画模板</title>
+<style>
+/* ============================================================
+   星禾科技 Singho 品牌开机动画（原创，四阶段）
+   参考「数字角色苏醒」类片头的叙事结构，素材全部为自有品牌资产：
+     - 线稿：星禾猴头标 SVG 三条真实路径（外形/面部/双眼）
+     - 配色：视觉规范 v1.0 token（紫#B41EEC → 蓝#0E70F2 深空底#06070F）
+     - 文案：「星禾科技（Singho）——打造一家伟大的科技公司，
+              给众人送去希望和梦想」
+   叙事设计：轮廓勾形 → 面部浮现 → 双眼点亮（苏醒）→ 眨眼定格
+   时间轴：p1 0s HUD浮现 / p2 1.1s 线稿自绘 / p3 3.0s 上色绽放
+           / p4 4.7s 定格眨眼呼吸
+   自定义入口（搜 CUSTOM）：文案、配色、时间轴参数
+   ============================================================ */
+:root {
+  /* CUSTOM: 品牌色 token（与视觉规范 v1.0 一致） */
+  --bg-void: #06070F;        /* 深空最底层 */
+  --bg-base: #0A0C1A;        /* 主背景 */
+  --brand-purple: #B41EEC;   /* 品牌紫（渐变起点） */
+  --brand-violet: #8A32EF;   /* 渐变中点 */
+  --brand-blue: #0E70F2;     /* 品牌蓝（渐变终点） */
+  --brand-grad: linear-gradient(80deg, #B41EEC 0%, #8A32EF 50%, #0E70F2 100%);
+  --purple-300: #C77BFF;     /* 紫系亮字（AA 可用） */
+  --blue-300: #6FA8FF;       /* 蓝系亮字（AA 可用） */
+  --text-primary: #F2F4FF;   /* 文本主 */
+  --text-secondary: #A8B0D0; /* 文本次 */
+  --text-tertiary: #7C85AD;  /* 文本弱 */
+  --accent-warm: #FFB86B;    /* 暖色点缀（星芒，占比≤2%） */
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: #000;
+  font-family: "JetBrains Mono", "Cascadia Code", "Microsoft YaHei", monospace;
+  color: var(--text-primary);
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ---------- 舞台：16:9 自适应 ---------- */
+.stage {
+  position: relative;
+  width: min(100vw, 177.78vh);
+  aspect-ratio: 16 / 9;
+  background:
+    radial-gradient(ellipse 90% 55% at 50% 118%, rgba(138,50,239,.16) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 45% at 50% -12%, rgba(14,112,242,.14) 0%, transparent 55%),
+    var(--bg-void);
+  overflow: hidden;
+}
+
+/* ---------- 图层 1：星空 + 粒子画布 ---------- */
+#sky { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---------- 图层 2：上色绽放光晕（p3 闪光） ---------- */
+.bloom {
+  position: absolute; left: 50%; top: 42%;
+  width: 46%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(.6);
+  background: radial-gradient(circle,
+    rgba(199,123,255,.32) 0%, rgba(138,50,239,.18) 32%, transparent 68%);
+  opacity: 0; pointer-events: none;
+}
+.stage.p3 .bloom { animation: bloomUp 1.6s ease-out forwards; }
+@keyframes bloomUp {
+  0%   { opacity: 0; transform: translate(-50%,-50%) scale(.6); }
+  35%  { opacity: 1; transform: translate(-50%,-50%) scale(1); }
+  100% { opacity: .22; transform: translate(-50%,-50%) scale(1.12); }
+}
+
+/* ---------- 图层 3：Logo（线稿自绘 → 上色） ---------- */
+.logo-wrap {
+  position: absolute; left: 50%; top: 42%;
+  width: clamp(120px, 21vmin, 220px);
+  transform: translate(-50%, -50%);
+}
+.stage.p4 .logo-wrap { animation: float 5s ease-in-out 1.8s infinite alternate; }
+@keyframes float {            /* 定格后轻微悬浮呼吸 */
+  from { transform: translate(-50%, -52%); }
+  to   { transform: translate(-50%, -48%); }
+}
+.logo-svg { width: 100%; height: auto; display: block; }
+.logo-svg path {
+  fill-opacity: 0;                       /* 初始只有线稿 */
+  stroke: url(#singho-grad);
+  stroke-width: 2.6;
+  stroke-linejoin: round; stroke-linecap: round;
+  filter: drop-shadow(0 0 7px rgba(138,50,239,.85));
+  transition: fill-opacity 1.1s ease, stroke-opacity 1.2s ease;
+}
+/* p3 上色：外形 → 面部 → 双眼 依次填充，描边保留微光 */
+.stage.p3 .logo-outer { fill-opacity: 1; transition-delay: 0s;   }
+.stage.p3 .logo-face  { fill-opacity: 1; transition-delay: .28s; }
+.stage.p3 .logo-eyes  { fill-opacity: 1; transition-delay: .55s; }
+.stage.p3 .logo-svg path { stroke-opacity: .35; stroke-width: 1.8; transition-delay: .4s; }
+
+/* 双眼眨动：p4 定格后循环（眼皮开合 = 苏醒点睛） */
+.stage.p4 .logo-eyes {
+  transform-box: fill-box; transform-origin: center;
+  animation: blink 4.6s ease-in-out 1.6s infinite;
+}
+@keyframes blink {
+  0%, 91%, 100% { transform: scaleY(1); }
+  94%           { transform: scaleY(.06); }
+  97%           { transform: scaleY(1); }
+}
+
+/* ---------- 图层 4：品牌名与口号 ---------- */
+.brand-box {
+  position: absolute; left: 50%; top: 42%;
+  transform: translate(-50%, 0);
+  text-align: center;
+  margin-top: clamp(80px, 14vmin, 150px);  /* 挂在 logo 正下方 */
+  opacity: 0; transition: opacity .6s ease;
+}
+.stage.p3 .brand-box { opacity: 1; }
+.eyebrow {
+  font-size: clamp(10px, 1.3vw, 15px);
+  letter-spacing: .62em; text-indent: .62em;   /* 视觉居中补偿 */
+  color: var(--blue-300);
+  opacity: 0; transition: opacity .7s ease .1s;
+}
+.stage.p3 .eyebrow { opacity: 1; }
+.brand-name {
+  margin-top: .28em;
+  font-size: clamp(30px, 5.6vw, 84px);
+  font-weight: 800; letter-spacing: .1em; text-indent: .1em;
+}
+/* 渐变字：打字机 span 逐字点亮 */
+.brand-name .ch {
+  background: var(--brand-grad);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  opacity: 0; filter: drop-shadow(0 0 14px rgba(138,50,239,.55));
+}
+.brand-name .ch.show { opacity: 1; animation: chPop .3s ease; }
+@keyframes chPop {
+  from { transform: translateY(10px) scale(.92); filter: blur(5px); }
+  to   { transform: translateY(0) scale(1);      filter: blur(0); }
+}
+.slogan {
+  margin-top: .9em;
+  font-size: clamp(11px, 1.5vw, 20px);
+  letter-spacing: .42em; text-indent: .42em;
+  color: var(--text-secondary);
+  opacity: 0; transition: opacity .9s ease .3s;
+}
+.slogan-en {
+  margin-top: .55em;
+  font-size: .58em; letter-spacing: .3em; text-indent: .3em;
+  color: var(--text-tertiary);
+  opacity: 0; transition: opacity .9s ease .6s;
+}
+.stage.p4 .slogan, .stage.p4 .slogan-en { opacity: 1; }
+
+/* ---------- 图层 5：HUD 覆盖层 ---------- */
+.hud {
+  position: absolute; inset: 0;
+  font-size: clamp(8px, 1.05vw, 13px);
+  letter-spacing: .14em;
+  pointer-events: none;
+}
+.corner {
+  position: absolute; width: 3.4%; aspect-ratio: 1;
+  border: 0 solid rgba(111,168,255,.5);
+  opacity: 0; transition: opacity .6s ease;
+}
+.stage.p1 .corner { opacity: 1; }
+.corner-tl { top: 4.5%;  left: 4.5%;  border-top-width: 1px; border-left-width: 1px; }
+.corner-tr { top: 4.5%;  right: 4.5%; border-top-width: 1px; border-right-width: 1px; }
+.corner-bl { bottom: 7%; left: 4.5%;  border-bottom-width: 1px; border-left-width: 1px; }
+.corner-br { bottom: 7%; right: 4.5%; border-bottom-width: 1px; border-right-width: 1px; }
+.hud-item {
+  position: absolute; opacity: 0; transform: translateY(-6px);
+  transition: opacity .8s ease, transform .8s ease;
+  line-height: 2; white-space: pre-line;
+}
+.stage.p1 .hud-item { opacity: 1; transform: translateY(0); }
+.hud-dim { color: var(--text-tertiary); }
+.hud-acc { color: var(--purple-300); }
+.hud-blu { color: var(--blue-300); }
+.hud-sm  { font-size: .84em; }
+.hud-brand { top: 5%; left: 5.5%; }
+.hud-brand .name { font-size: 1.2em; font-weight: 700; letter-spacing: .22em; }
+.hud-ver { top: 5%; right: 5.5%; text-align: right; }
+/* 状态词：禾苗成长叙事 SEEDING → READY */
+.hud-status { top: 26%; left: 5.5%; }
+.hud-status span { display: block; color: var(--text-tertiary); transition: color .3s; }
+.hud-status span.on { color: var(--blue-300); text-shadow: 0 0 9px rgba(14,112,242,.6); }
+.hud-status span.on::before { content: "> "; }
+.hud-motto { bottom: 9.5%; left: 5.5%; }
+.hud-more { top: 44%; right: 5.5%; text-align: right; }
+.hud-rule {
+  position: absolute; bottom: 6.4%; left: 4.5%; right: 4.5%; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(111,168,255,.45) 20%, rgba(199,123,255,.45) 80%, transparent);
+  opacity: 0; transition: opacity .8s ease;
+}
+.stage.p1 .hud-rule { opacity: 1; }
+
+/* ---------- 图层 6：光轨 ---------- */
+.streak {
+  position: absolute; height: 1px; width: 30%;
+  background: linear-gradient(90deg, transparent, var(--purple-300), transparent);
+  filter: drop-shadow(0 0 5px rgba(138,50,239,.8));
+  opacity: 0;
+}
+.stage.p1 .streak { animation: streakMove 1.15s ease-out forwards; }
+.streak-1 { top: 30%; left: 8%; }
+.streak-2 { top: 66%; left: 42%; animation-delay: .28s !important; }
+@keyframes streakMove {
+  0%   { opacity: 0; transform: translateX(-60%); }
+  25%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(170%); }
+}
+
+/* ---------- 控制条（预览用，非动画本体） ---------- */
+.ctrl {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 10px; z-index: 9;
+}
+.ctrl button {
+  font: inherit; font-size: 12px; letter-spacing: .1em;
+  color: var(--text-primary); background: rgba(18,21,42,.75);
+  border: 1px solid rgba(111,168,255,.45); border-radius: 4px;
+  padding: 6px 14px; cursor: pointer; transition: all .15s;
+}
+.ctrl button:hover { background: rgba(138,50,239,.18); box-shadow: 0 0 10px rgba(138,50,239,.5); }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <!-- 图层 1：星空 -->
+  <canvas id="sky"></canvas>
+
+  <!-- 图层 2：上色绽放光晕 -->
+  <div class="bloom"></div>
+
+  <!-- 图层 3：Logo（猴头标三条真实路径，与 assets/星禾logo_猴头标.svg 同源） -->
+  <div class="logo-wrap">
+    <svg class="logo-svg" viewBox="0 0 386 406" role="img" aria-label="星禾科技 Singho">
+      <defs>
+        <!-- CUSTOM: 渐变与品牌 SVG 保持一致 -->
+        <linearGradient id="singho-grad" x1="0" y1="58%" x2="100%" y2="42%">
+          <stop offset="0" stop-color="#B41EEC"/>
+          <stop offset=".5" stop-color="#8A32EF"/>
+          <stop offset="1" stop-color="#0E70F2"/>
+        </linearGradient>
+      </defs>
+      <!-- ① 外形轮廓（最先勾形） -->
+      <path class="logo-outer" d="M233,15 L230,16 L227,33 L217,56 L201,74 L187,84 L172,92 L141,101 L73,104 L56,113 L46,124 L40,136 L39,179 L22,187 L17,193 L16,197 L16,280 L19,287 L27,295 L35,298 L39,302 L38,348 L41,359 L51,375 L69,387 L79,390 L304,389 L315,386 L332,375 L343,358 L345,348 L345,299 L347,296 L353,295 L361,289 L369,275 L370,197 L368,188 L361,180 L348,177 L346,175 L346,141 L342,128 L337,121 L324,108 L314,104 L304,102 L285,103 L282,101 L282,85 L277,68 L270,53 L253,30 L242,20 Z" fill="url(#singho-grad)"/>
+      <!-- ② 白色面部（其次浮现） -->
+      <path class="logo-face" d="M88,142 L82,149 L79,156 L79,226 L87,238 L99,250 L83,265 L79,271 L79,337 L85,348 L97,356 L164,356 L170,352 L189,331 L191,331 L203,345 L214,354 L221,357 L284,356 L293,352 L300,344 L304,331 L304,273 L299,262 L283,246 L301,229 L304,220 L304,163 L303,156 L296,144 L290,139 L279,136 L214,136 L206,140 L190,155 L181,145 L168,136 L101,136 Z M228,198 L247,198 L250,199 L257,207 L258,270 L255,277 L247,283 L227,283 L218,274 L218,208 L219,205 Z M136,198 L157,199 L161,202 L164,208 L164,274 L154,283 L136,283 L127,276 L125,270 L125,210 L128,203 Z" fill="#FFFFFF"/>
+      <!-- ③ 双眼（最后点亮 = 苏醒） -->
+      <path class="logo-eyes" d="M227,200 L221,205 L219,210 L219,271 L221,276 L227,281 L248,281 L254,276 L256,271 L256,210 L254,205 L248,200 Z M135,200 L129,204 L127,209 L127,272 L129,276 L136,281 L155,281 L161,276 L163,270 L163,211 L159,202 L155,200 Z" fill="#14141C"/>
+    </svg>
+  </div>
+
+  <!-- 图层 4：品牌名与口号（CUSTOM: 文案在此改） -->
+  <div class="brand-box">
+    <div class="eyebrow">SINGHO</div>
+    <!-- CUSTOM: 品牌主名，JS 按 data-text 拆字 -->
+    <div class="brand-name" id="brandName" data-text="星禾科技"></div>
+    <div class="slogan">给众人送去希望和梦想</div>
+    <div class="slogan-en">BUILDING A GREAT TECH COMPANY</div>
+  </div>
+
+  <!-- 图层 5：HUD -->
+  <div class="hud">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+    <div class="hud-rule"></div>
+
+    <div class="hud-item hud-brand hud-sm">
+      <div class="name hud-acc">✦ 星禾科技</div>
+      <div class="hud-dim">SINGHO TECH
+HOPE &amp; DREAMS FOR ALL</div>
+    </div>
+
+    <div class="hud-item hud-ver hud-sm">
+      <div class="hud-blu">SINGHO</div>
+      <div class="hud-dim">OS · V1.0</div>
+    </div>
+
+    <!-- 状态词：禾苗成长叙事（CUSTOM: 可换成 BOOTING/RENDERING 等技术词） -->
+    <div class="hud-item hud-status hud-sm" id="statusList">
+      <span>SEEDING</span>
+      <span>SPROUTING</span>
+      <span>GROWING</span>
+      <span>GLOWING</span>
+      <span>POLISHING</span>
+      <span>READY</span>
+    </div>
+
+    <div class="hud-item hud-motto hud-sm hud-dim">打造一家伟大的科技公司
+GIVE HOPE, GIVE DREAMS</div>
+
+    <div class="hud-item hud-more hud-sm hud-dim">EMBEDDED
+AI
+ROBOTICS</div>
+  </div>
+
+  <!-- 图层 6：光轨 -->
+  <div class="streak streak-1"></div>
+  <div class="streak streak-2"></div>
+</div>
+
+<!-- 预览控制条 -->
+<div class="ctrl">
+  <button onclick="play()">▶ 重播</button>
+  <button onclick="toggleLoop()" id="loopBtn">循环: 关</button>
+</div>
+
+<script>
+/* ============================================================
+   时间轴控制器
+   CUSTOM: PHASES 时刻与 END 总时长可整体调速
+   ============================================================ */
+const stage = document.getElementById('stage');
+const PHASES = [['p1', 0], ['p2', 1100], ['p3', 3000], ['p4', 4700]];
+const END = 7200;
+let timers = [], looping = false;
+
+/* ---------- Logo 线稿自绘：三条路径错峰勾勒 ---------- */
+const logoPaths = [
+  { el: document.querySelector('.logo-outer'), t0: 1.15, dur: 1.5 },  /* ① 外形 */
+  { el: document.querySelector('.logo-face'),  t0: 1.75, dur: 0.9 },  /* ② 面部 */
+  { el: document.querySelector('.logo-eyes'),  t0: 2.55, dur: 0.45 }, /* ③ 双眼压轴 */
+];
+function drawLogo() {
+  logoPaths.forEach(({ el, t0, dur }) => {
+    const len = el.getTotalLength();
+    el.style.transition = 'none';
+    el.style.strokeDasharray  = len;
+    el.style.strokeDashoffset = len;
+  });
+  document.querySelector('.logo-svg').getBoundingClientRect(); // 强制 reflow
+  logoPaths.forEach(({ el, t0, dur }) => {
+    el.style.transition = `stroke-dashoffset ${dur}s ease-in-out ${t0}s, fill-opacity 1.1s ease, stroke-opacity 1.2s ease`;
+    el.style.strokeDashoffset = 0;
+  });
+}
+
+/* ---------- 品牌名逐字打出 ---------- */
+function typeName() {
+  const el = document.getElementById('brandName');
+  el.innerHTML = '';
+  [...el.dataset.text].forEach((c, i) => {
+    const s = document.createElement('span');
+    s.className = 'ch'; s.textContent = c;
+    el.appendChild(s);
+    setTimeout(() => s.classList.add('show'), 170 * i);  /* 汉字节奏稍慢更稳 */
+  });
+}
+
+/* ---------- 状态词轮播 ---------- */
+function cycleStatus() {
+  const items = document.querySelectorAll('#statusList span');
+  let i = 0;
+  const tick = setInterval(() => {
+    items.forEach(s => s.classList.remove('on'));
+    if (i < items.length) items[i].classList.add('on');
+    else clearInterval(tick);                /* 走完停在 READY */
+    i++;
+  }, 480);
+}
+
+/* ---------- 星空 + 粒子：固定星点闪烁 + 少量上浮光尘 ---------- */
+const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
+let stars = [], motes = [];
+function initSky() {
+  cv.width = cv.clientWidth; cv.height = cv.clientHeight;
+  /* 星点：品牌深空底色上的静态星空（含 1 颗暖色星芒点缀） */
+  stars = Array.from({ length: 90 }, (_, i) => ({
+    x: Math.random() * cv.width, y: Math.random() * cv.height,
+    r: Math.random() * 1.1 + .3,
+    tw: Math.random() * 6.28,                              /* 闪烁相位 */
+    ts: .5 + Math.random() * 1.5,                          /* 闪烁速度 */
+    c: i === 0 ? '255,184,107'                             /* 1 颗暖星 #FFB86B */
+      : (Math.random() < .5 ? '111,168,255' : '242,246,255'),
+  }));
+  /* 光尘：缓慢上浮，紫蓝各半 */
+  motes = Array.from({ length: 26 }, () => ({
+    x: Math.random() * cv.width, y: Math.random() * cv.height,
+    r: Math.random() * 1.6 + .5,
+    vx: (Math.random() - .5) * .22, vy: -Math.random() * .28 - .06,
+    a: Math.random() * .4 + .15,
+    c: Math.random() < .5 ? '199,123,255' : '111,168,255',
+  }));
+}
+function loopSky(t) {
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  for (const s of stars) {                                 /* 星点闪烁 */
+    const a = .25 + .55 * (0.5 + 0.5 * Math.sin(t / 900 * s.ts + s.tw));
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 7);
+    ctx.fillStyle = `rgba(${s.c},${a})`; ctx.fill();
+  }
+  for (const m of motes) {                                 /* 光尘上浮 */
+    m.x += m.vx; m.y += m.vy;
+    if (m.y < -4) { m.y = cv.height + 4; m.x = Math.random() * cv.width; }
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, 7);
+    ctx.fillStyle = `rgba(${m.c},${m.a})`;
+    ctx.shadowColor = `rgba(${m.c},.8)`; ctx.shadowBlur = 6;
+    ctx.fill(); ctx.shadowBlur = 0;
+  }
+  requestAnimationFrame(loopSky);
+}
+
+/* ---------- 主控：播放 / 循环 ---------- */
+function play() {
+  timers.forEach(clearTimeout); timers = [];
+  stage.className = 'stage';
+  drawLogo();
+  PHASES.forEach(([cls, t]) =>
+    timers.push(setTimeout(() => stage.classList.add(cls), t)));
+  timers.push(setTimeout(typeName, 3150));
+  timers.push(setTimeout(cycleStatus, 550));
+  if (looping) timers.push(setTimeout(play, END));
+}
+function toggleLoop() {
+  looping = !looping;
+  document.getElementById('loopBtn').textContent = `循环: ${looping ? '开' : '关'}`;
+  if (looping) play();
+}
+
+/* ---------- 启动 ---------- */
+initSky(); requestAnimationFrame(loopSky); play();
+window.addEventListener('resize', initSky);
+</script>
+</body>
+</html>
