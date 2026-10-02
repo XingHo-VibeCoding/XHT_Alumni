@@ -25,23 +25,41 @@
  * - 降级：prefers-reduced-motion 时由脚本移除 SMIL 动画，特效静止、扫光停在场外（TCD 7.4 规格）。
  *
  * MVP 采用 E1 的降级形态：静态三件套 + CSS 静止星点背景（TCD 7.4 降级规格）。
- * 粒子动效岛（星野凝字）完成后，动效结束即淡入本组件（TCD 7.2 落位处理）。
+ *
+ * 2026-10-01 「星野凝字」粒子岛（E1）实装接入：
+ * - 本组件挂载 StarField.astro（Canvas 粒子层，覆盖本 section）；
+ * - 播放期间 section 标记 data-intro-state="playing" → #brand-hero-content 隐藏，
+ *   粒子聚拢点亮结束后标记 "done" → 真实三件套淡入（TCD 7.2 落位处理）；
+ * - 无标记（默认态）= 静态三件套直接可见：回访 / 降级 / 无 JS 全部零损失。
+ * - StarField 运行时采样本组件的 .trio-svg 作为粒子目标形状（同 viewBox 坐标系）。
  */
 import home from '../../data/home.json';
+import StarField from './StarField.astro';
 
 // 品牌理念：数据源保留附录 E 原文，渲染按逗号拆成两行（去逗号，Dragon 2026-09-28 指示）
 const philosophyLines = home.philosophy.split('，');
 ---
 
-<!-- 首屏：min-h-screen 占满一屏；星野/图案背景由全局 .site-bg 层提供（BaseLayout） -->
-<section class="relative flex min-h-screen items-center justify-center overflow-hidden">
+<!-- 首屏：min-h-screen 占满一屏；星野/图案背景由全局 .site-bg 层提供（BaseLayout）。
+     id="brand-hero" + data-intro-state：星野凝字粒子岛（StarField）的落位控制开关 -->
+<section id="brand-hero" class="relative flex min-h-screen items-center justify-center overflow-hidden">
 
-  <div class="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 pt-16 sm:px-6">
+  <!-- 播放期间整块隐藏、结束后淡入的内容容器（含三件套 / 理念 / 重播入口） -->
+  <div id="brand-hero-content" class="relative z-10 mx-auto flex max-w-5xl flex-col items-center px-4 pt-16 sm:px-6">
     <!-- 三件套（SVG 矢量版）：猴头 + Singho + 星禾科技 同一坐标系。
          方案 E 特效（A 扫光 + B 极光）：两层"渐变矩形 + 形状蒙版"叠加在静态兜底之上，
          特效仅作用于文字（logo 保持静态原样），渐变坐标统一在 viewBox 坐标系 -->
     <svg class="trio-svg" viewBox="0 0 1270 410" role="img" aria-label="星禾科技 Singho 品牌标识">
       <defs>
+        <!-- 字形柔边滤镜（2026-10-02 Dragon 指示"字边缘要圆润不要棱角分明"）：
+             极轻高斯模糊（0.7，viewBox 坐标 ≈ 屏幕亚像素级），边缘滑而不糊。
+             必须同时作用于静态兜底文字与特效蒙版形状——否则极光/扫光层
+             边缘仍是锐利的，与柔化后的兜底文字质感不一致。
+             调柔和度改 stdDeviation（0.4 = 很轻 / 1.0 = 明显） -->
+        <filter id="trio-soften" x="-4%" y="-4%" width="108%" height="108%">
+          <feGaussianBlur stdDeviation="0.7" />
+        </filter>
+
         <!-- 品牌渐变（兜底填充用，80° 轴向与规范一致；特效层失效时露出静态渐变） -->
         <linearGradient id="trio-brand" x1="0" y1="58%" x2="100%" y2="42%">
           <stop offset="0" stop-color="#B41EEC" />
@@ -95,7 +113,7 @@ const philosophyLines = home.philosophy.split('，');
         <!-- 特效形状组：仅星禾科技字形（白色 = 蒙版里"显示"）。
              logo 不进特效（2026-09-30 Dragon 指示改回静态，由下方兜底填充层原样呈现）；
              文字属性内联写全（不依赖 scoped class），保证蒙版字形与可见文字逐像素一致 -->
-        <g id="trio-text-shapes" fill="#ffffff">
+        <g id="trio-text-shapes" fill="#ffffff" filter="url(#trio-soften)">
           <text x="330" y="342" style="font-family: var(--font-cn); font-style: oblique 10deg; font-size: 210px; font-weight: 700; letter-spacing: 12px; fill: #ffffff;">星禾科技</text>
         </g>
 
@@ -109,7 +127,7 @@ const philosophyLines = home.philosophy.split('，');
         <mask id="trio-mask-sweep" maskUnits="userSpaceOnUse" x="0" y="0" width="1270" height="410">
           <rect width="1270" height="410" fill="black" />
           <use href="#trio-text-shapes"></use>
-          <text x="330" y="104" style="font-family: var(--font-en); font-style: oblique 10deg; font-size: 48px; font-weight: 300; letter-spacing: 8px; fill: #ffffff;">Singho</text>
+          <text x="330" y="104" style="font-family: var(--font-en); font-style: oblique 10deg; font-size: 48px; font-weight: 300; letter-spacing: 8px; fill: #ffffff;" filter="url(#trio-soften)">Singho</text>
         </mask>
       </defs>
 
@@ -130,8 +148,8 @@ const philosophyLines = home.philosophy.split('，');
       </g>
 
       <!-- ===== Singho 眉题 / 星禾科技 主名：静态兜底填充（正常情况下被上方特效层覆盖） ===== -->
-      <text x="330" y="104" class="txt txt-eyebrow">Singho</text>
-      <text x="330" y="342" class="txt txt-cn">星禾科技</text>
+      <text x="330" y="104" class="txt txt-eyebrow" filter="url(#trio-soften)">Singho</text>
+      <text x="330" y="342" class="txt txt-cn" filter="url(#trio-soften)">星禾科技</text>
 
       <!-- ===== 方案 E 特效层（叠在兜底填充之上）=====
            两层结构相同：一张铺满 viewBox 的矩形，fill 是运动渐变，mask 把颜色裁进三件套形状 -->
@@ -167,6 +185,9 @@ const philosophyLines = home.philosophy.split('，');
       </svg>
     </button>
   </div>
+
+  <!-- 星野凝字粒子层：绝对定位覆盖本 section，仅播放期间可见（REQ-001） -->
+  <StarField />
 </section>
 
 <script>
@@ -192,8 +213,13 @@ const philosophyLines = home.philosophy.split('，');
   .trio-svg {
     width: min(88vw, 1150px);
     height: auto;
-    /* 常驻轻辉光托底氛围 */
-    filter: drop-shadow(0 0 18px rgba(138, 50, 239, 0.25));
+    /* 霓虹氛围光（2026-10-02 三轮收敛，Dragon 反馈"模糊过头、光晕少一点、亮度够"）：
+       三层 drop-shadow 半径全面收小（8/24/56 → 6/16/34），alpha 微降保亮度感——
+       内层紫亮贴边 → 中层紫扩散 → 外层蓝氛围；
+       调亮度改三处 alpha（0.55/0.4/0.24），调扩散范围改三个模糊半径 */
+    filter: drop-shadow(0 0 6px rgba(199, 123, 255, 0.55))
+      drop-shadow(0 0 16px rgba(138, 50, 239, 0.4))
+      drop-shadow(0 0 34px rgba(14, 112, 242, 0.24));
   }
 
   /* ---- 文字通用与分档（SVG 内 text 用 CSS 控制字体） ---- */
@@ -223,6 +249,19 @@ const philosophyLines = home.philosophy.split('，');
   /* 动画降级说明：特效动画均为 SVG SMIL（gradientTransform 平移），
      CSS 关不掉 SMIL，因此由组件脚本在 prefers-reduced-motion 时移除动画节点——
      极光层静止为静态品牌渐变、扫光层回落到初始位置（画面外），信息零损失 */
+
+  /* ---- 星野凝字落位（TCD 7.2）：播放期间内容隐藏，结束标记 done 后淡入。
+       默认无标记 = 完全可见，回访 / 降级 / 无 JS 路径零参与 ---- */
+  #brand-hero-content {
+    transition: opacity 600ms ease;
+  }
+  #brand-hero[data-intro-state='playing'] #brand-hero-content {
+    opacity: 0;
+    /* v5 即刻隐藏（不做 600ms 渐隐）：封面淡出仅 220ms，内容若慢慢变透明，
+       会在封面半透明期间被透出来形成闪现。落位 'done' 时本规则失效，
+       回到 600ms 过渡 —— 粒子散场后三件套的淡入不受影响 */
+    transition: none;
+  }
 
   /* ---- 重播按钮：深色圆底 + 半透明白描边（视频播放器规格语言），悬停辉光 ---- */
   .replay-btn {

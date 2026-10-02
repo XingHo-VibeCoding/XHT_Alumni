@@ -1,0 +1,709 @@
+---
+/**
+ * StarField.astro — 首屏「星野凝字」粒子动效岛（E1，REQ-001 / TCD 7.2 / 7.3 / 7.4）
+ *
+ * 与 TCD 的实现差异（as-built 决策，2026-10-01）：
+ * - TCD 原计划 React 岛（components/hero/StarField.tsx），但站点实际架构为
+ *   纯 Astro + 组件内联脚本（零 React 运行时）。为保持架构一致与体积预算
+ *   （TCD 估算首屏动效岛 ~12KB），本组件用原生 TS + Canvas 2D 实现。
+ *
+ * v2（2026-10-01 重设计，修复粒子与三件套不对位）：
+ * - v1 采用「克隆 SVG → data URL → <img> 光栅化」采样，存在两个渲染歧义：
+ *   ① SVG 无 width/height 属性时 img 按默认视口渲染，拉伸映射产生偏差；
+ *   ② font-style: oblique 10deg 在 img 光栅化上下文不保证生效 → 粒子正体 vs 真实斜体。
+ * - v2 改为在主文档用 Canvas 2D **直接重绘三件套剪影**后采 alpha：
+ *   · 猴头：读取活 DOM 的 path d + 组 transform，用 Path2D 同源重绘（逐像素一致）；
+ *   · 文字：从活 DOM computed style 读取 字体/字号/字重/字距/斜体角度，
+ *     fillText 逐字符绘制 + 显式斜切矩阵（数学上等价 CSS oblique 10deg）+ 逐字距排布；
+ *   · 全程无 img / 无序列化，渲染路径确定，改文案/字体后自动跟随，零资产维护。
+ *
+ * v3（2026-10-01 三点体验修正，Dragon 反馈）：
+ * - 星形粒子：makeSprite 由圆形光晕重做为「白核 + 四向星芒 + 斜向小芒 + 柔光晕」
+ *   星形贴图（用户原话：『这个不是星星吗，怎么变成亮点了』）；
+ * - 落位交接重排：点亮达峰后粒子层先行消散（380ms，期间内容保持隐藏），
+ *   画布透明后真实三件套才淡入——先散场、后亮相；并修复 v2 的内联 opacity
+ *   覆盖 .is-fading 类、落位淡出从未生效的隐藏 bug（亮点叠加问题的直接根源）；
+ * - 采样自校准：逐文字以 DOM getBBox 实测墨迹框平移采样形状（textShift），
+ *   字体度量 / 回退字体 / 斜切处理的任何偏差都被自动吸收，粒子永远落在真实颜料位；
+ *   逐元素采样同时精确标注点亮分组（猴头 / Singho / 星禾），不再按坐标阈值猜测。
+ *
+ * v4（2026-10-02 文字对位根治，Dragon 反馈"字的位置没对应上"）：
+ * - v2/v3 的根本缺陷：drawTextShape 用 measureText + letterSpacing **自行推算**
+ *   字符步进——与浏览器真实排版（kerning / 字距施加方式 / 字形微调）存在系统性
+ *   偏差，getBBox 整框校准只能平移整串、救不了串内逐字漂移；
+ * - v4 改为逐字符调用 getStartPositionOfChar(i) 拿**浏览器自己的排版结果**落笔
+ *   （该 API 返回每个字形 advance 原点，含字距/锚点/字体度量的全部排版输出），
+ *   画布逐字位置与活 DOM 完全同源；斜体逐字以各自基线为轴斜切，
+ *   与 CSS synthetic oblique 同锚点；API 异常时退回 v2 推算路径兜底；
+ * - v3 的 textShift/getBBox 整框校准机制随之移除（逐字同源后不再需要）。
+ *   猴头早已同源贴合（path 重绘），文字同源化后全部对齐。
+ *
+ * 动效流程（由 IntroCover 点击「进入」后派发 singho:intro-enter 事件触发）：
+ *   1. 漂移   0–0.7s：星点随机散布并缓慢游移，淡入画面（封面本身已是星空，衔接自然）
+ *   2. 聚拢   0.7–1.9s：向三件套目标坐标插值移动（easeOutExpo 近似 TCD 指定
+ *      cubic-bezier(0.16,1,0.3,1)，逐粒子错峰 0–25% 增加层次感）
+ *   3. 点亮   1.9–2.6s：猴头 → Singho → 星禾科技 依次增亮 + 辉光放大
+ *   4. 落位   2.6s 起：先散场后亮相——粒子层先行消散（380ms，内容保持隐藏），
+ *      画布透明后真实三件套（SVG）才淡入同一位置
+ *      （TCD 7.2 落位处理：品牌名必须留在 DOM 里可被屏幕阅读器读取）
+ *
+ * 降级链（REQ-003 / TCD 7.4，任一命中即静态呈现、不播放，信息零损失）：
+ *   prefers-reduced-motion / 采样失败 / Canvas 不可用 /
+ *   动画期间页面隐藏（visibilitychange）/ 视口尺寸变化 → finalize() 兜底恢复。
+ *
+ * 调试：访问 /?introdebug=1 会在三件套上静态铺出全部采样点（不播动画），
+ * 用于肉眼核对粒子目标点与真实三件套的对位（对位验收用，正式访问不带参数即可）。
+ *
+ * 性能（TCD 7.3 红线）：
+ *   - 粒子星形贴图预渲染（离屏 Canvas 一次，6 档品牌渐变色），每帧仅 drawImage；
+ *   - 桌面 1600 粒 / 移动端 ≤100 粒（matchMedia）；dpr 上限 2；
+ *   - 按需启动：只在「进入」后运行一次，播完即销毁循环，不留常驻 rAF。
+ */
+---
+
+<!-- 粒子画布：绝对定位覆盖首屏，仅播放/调试期间显示；装饰性元素，不参与任何交互 -->
+<canvas
+  id="starfield-canvas"
+  class="pointer-events-none absolute inset-0 z-20 hidden"
+  aria-hidden="true"
+></canvas>
+
+<script>
+  const hero = document.getElementById('brand-hero');
+  const svg = hero?.querySelector('.trio-svg') as SVGSVGElement | null;
+  const canvas = document.getElementById('starfield-canvas') as HTMLCanvasElement | null;
+
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- 时间轴（ms），对齐 TCD 7.2「0–1.2s 聚拢，1.2–1.8s 发光」----
+  const DRIFT = 700; // 漂移时长
+  const CONVERGE = 1200; // 聚拢时长
+  const GLOW = 700; // 依次点亮时长
+  const SETTLE = 380; // 落位阶段一：粒子画布先行消散时长（内容在其后才淡入）
+  const GLOW_START = DRIFT + CONVERGE;
+  const END = GLOW_START + GLOW;
+
+  // 采样超分辨率倍率：1.5x 下按 alpha 采点，字形边缘更贴合
+  const SAMPLE_SCALE = 1.5;
+
+  let playing = false;
+
+  /** 缓动：easeOutExpo，近似 TCD 指定 cubic-bezier(0.16, 1, 0.3, 1) 的收敛节奏 */
+  const easeOut = (x: number) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+  const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+  /** hex → rgba 字符串（贴图绘制用） */
+  function rgba(hex: string, a: number): string {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+
+  /**
+   * 粒子星星贴图（v3，预渲染一次全帧复用，TCD 7.3）：
+   * 四层结构 = 柔光晕打底 + 四向主星芒（凹边菱形，中心亮、尖端细） +
+   * 斜向 45° 小星芒（八向闪烁感）+ 白热核心。
+   * v2 的圆形光晕读不出「星星」形态，是 Dragon 反馈第二点的根源。
+   */
+  function makeSprite(halo: string): HTMLCanvasElement {
+    const s = 64;
+    const c = document.createElement('canvas');
+    c.width = c.height = s;
+    const g = c.getContext('2d');
+    if (!g) return c;
+    const cx = s / 2;
+    const cy = s / 2;
+    const R = s / 2;
+    g.globalCompositeOperation = 'lighter';
+
+    // 1) 柔光晕打底：保留「星野」氛围，星星不是孤立的硬形
+    const glow = g.createRadialGradient(cx, cy, 0, cx, cy, R);
+    glow.addColorStop(0, rgba(halo, 0.4));
+    glow.addColorStop(0.45, rgba(halo, 0.16));
+    glow.addColorStop(1, rgba(halo, 0));
+    g.fillStyle = glow;
+    g.fillRect(0, 0, s, s);
+
+    // 2) 四向主星芒：凹边菱形星形（控制点贴近中心 → 光线尖细）
+    const starPath = (r: number): Path2D => {
+      const k = r * 0.16;
+      const p = new Path2D();
+      p.moveTo(cx, cy - r);
+      p.quadraticCurveTo(cx + k, cy - k, cx + r, cy);
+      p.quadraticCurveTo(cx + k, cy + k, cx, cy + r);
+      p.quadraticCurveTo(cx - k, cy + k, cx - r, cy);
+      p.quadraticCurveTo(cx - k, cy - k, cx, cy - r);
+      p.closePath();
+      return p;
+    };
+    const rayGrad = (r: number): CanvasGradient => {
+      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, r);
+      rg.addColorStop(0, rgba('#F2F6FF', 0.95));
+      rg.addColorStop(0.3, rgba('#F2F6FF', 0.55));
+      rg.addColorStop(0.75, rgba(halo, 0.3));
+      rg.addColorStop(1, rgba(halo, 0));
+      return rg;
+    };
+    g.fillStyle = rayGrad(R);
+    g.fill(starPath(R));
+
+    // 3) 斜向 45° 小星芒：八向星光，闪烁感更强
+    g.save();
+    g.translate(cx, cy);
+    g.rotate(Math.PI / 4);
+    g.translate(-cx, -cy);
+    g.globalAlpha = 0.6;
+    g.fillStyle = rayGrad(R * 0.62);
+    g.fill(starPath(R * 0.62));
+    g.restore();
+    g.globalAlpha = 1;
+
+    // 4) 白热核心
+    const coreR = R * 0.2;
+    const core = g.createRadialGradient(cx, cy, 0, cx, cy, coreR);
+    core.addColorStop(0, 'rgba(255,255,255,1)');
+    core.addColorStop(1, rgba('#F2F6FF', 0));
+    g.fillStyle = core;
+    g.beginPath();
+    g.arc(cx, cy, coreR, 0, Math.PI * 2);
+    g.fill();
+    return c;
+  }
+
+  /** 从 computed style 解析 oblique 斜体角度（度）；italic 按 14° 近似；normal 为 0 */
+  function obliqueAngleDeg(fontStyle: string): number {
+    const m = /oblique\s+(-?[\d.]+)deg/.exec(fontStyle);
+    if (m) return parseFloat(m[1] as string);
+    return fontStyle === 'italic' ? 14 : 0;
+  }
+
+  /**
+   * 重绘猴头标：读取活 DOM 的组 transform 与 path d，用 Path2D 同源重绘。
+   * 颜色不影响采样（只看 alpha），统一填白；fill-rule 默认 nonzero 与 SVG 一致，
+   * 字形镂空（"88" 窗口等）由与线上一致的子路径方向自然还原。
+   */
+  function drawMonkey(ctx: CanvasRenderingContext2D, color = '#ffffff'): void {
+    if (!svg) return;
+    const g = svg.querySelector('g[transform]');
+    const paths = svg.querySelectorAll('path');
+    if (!paths.length) return;
+    ctx.save();
+    // 解析 BrandTrio 猴头组的 "translate(a, b) scale(s)"（不再硬编码，改版自动跟随）
+    if (g) {
+      const tr = g.getAttribute('transform') || '';
+      const t = /translate\(\s*([-\d.]+)[ ,]+([-\d.]+)\s*\)/.exec(tr);
+      const s = /scale\(\s*([-\d.]+)\s*\)/.exec(tr);
+      if (t) ctx.translate(parseFloat(t[1] as string), parseFloat(t[2] as string));
+      if (s) {
+        const k = parseFloat(s[1] as string);
+        ctx.scale(k, k);
+      }
+    }
+    ctx.fillStyle = color;
+    paths.forEach((p) => {
+      const d = p.getAttribute('d');
+      if (d) ctx.fill(new Path2D(d));
+    });
+    ctx.restore();
+  }
+
+  /**
+   * 重绘一行文字（v4 逐字同源）：每个字符直接画在 getStartPositionOfChar(i)
+   * 返回的 advance 原点上——这是浏览器排版引擎自己的输出（含 letter-spacing /
+   * text-anchor / 字体度量 / kerning 的全部结果），画布不再自行推算步进，
+   * 粒子目标与真实文字逐字严格对齐（v2/v3 对不上的根源即"画布推算 vs 浏览器排版"）。
+   * 斜体：逐字以各自基线为轴做 oblique 斜切（与 CSS synthetic oblique 同锚点）。
+   * 颜色不影响采样（只看 alpha）；API 异常时退回 v2 手动推算路径兜底。
+   */
+  function drawTextShape(ctx: CanvasRenderingContext2D, el: SVGTextElement, color = '#ffffff'): void {
+    const cs = getComputedStyle(el);
+    const fs = parseFloat(cs.fontSize);
+    const ang = (obliqueAngleDeg(cs.fontStyle) * Math.PI) / 180;
+
+    ctx.save();
+    // canvas font 简写：字重 + 字号 + 字族列表（与活 DOM computed style 同源）
+    ctx.font = cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = color;
+    const text = el.textContent || '';
+
+    let ok = true;
+    let cu = 0; // UTF-16 code unit 下标（getStartPositionOfChar 按码元计数）
+    for (const ch of text) {
+      try {
+        const p = el.getStartPositionOfChar(cu);
+        ctx.save();
+        ctx.translate(p.x, p.y); // 先到该字形的排版原点
+        if (ang) ctx.transform(1, 0, -Math.tan(ang), 1, 0, 0); // 斜切以本字基线为轴
+        ctx.fillText(ch, 0, 0);
+        ctx.restore();
+      } catch {
+        ok = false;
+        break;
+      }
+      cu += ch.length;
+    }
+
+    if (!ok) {
+      // 兜底（API 异常环境）：退回 v2 推算路径——锚定 x/y 属性逐字排布，可能有小偏差
+      const x = parseFloat(el.getAttribute('x') || '0');
+      const y = parseFloat(el.getAttribute('y') || '0');
+      const ls = parseFloat(cs.letterSpacing) || 0;
+      ctx.translate(x, y);
+      if (ang) ctx.transform(1, 0, -Math.tan(ang), 1, 0, 0);
+      let cx = 0;
+      for (const ch of text) {
+        ctx.fillText(ch, cx, 0);
+        cx += ctx.measureText(ch).width + ls; // CSS letter-spacing：逐字后置
+      }
+    }
+    ctx.restore();
+  }
+
+  /**
+   * 目标坐标采样：离屏 Canvas 重绘三件套剪影 → 按 alpha 采点（v3 逐元素单趟扫描）。
+   * 返回 viewBox 坐标系下的点集（[x0,y0,x1,y1,...]）、逐点分组（0 猴头 / 1 Singho /
+   * 2 星禾科技，依次点亮精确到元素）与逐元素包围盒（调试模式用于和 DOM
+   * getBoundingClientRect 逐项对照）；文字重绘经 v4 逐字同源；失败返回 null。
+   */
+  function sampleTargets(): {
+    pts: number[];
+    grp: number[];
+    w: number;
+    h: number;
+    boxes: { name: string; x0: number; y0: number; x1: number; y1: number }[];
+  } | null {
+    if (!svg) return null;
+    try {
+      const vb = svg.viewBox.baseVal;
+      const oc = document.createElement('canvas');
+      oc.width = Math.ceil(vb.width * SAMPLE_SCALE);
+      oc.height = Math.ceil(vb.height * SAMPLE_SCALE);
+      const ctx = oc.getContext('2d', { willReadFrequently: true });
+      if (!ctx) return null;
+
+      const texts = Array.from(svg.querySelectorAll('text')).filter((t) => !t.closest('defs'));
+      const layers: { name: string; draw: () => void }[] = [
+        { name: 'MON', draw: () => drawMonkey(ctx) },
+        { name: 'SG ', draw: () => texts[0] && drawTextShape(ctx, texts[0]) },
+        { name: 'CN ', draw: () => texts[1] && drawTextShape(ctx, texts[1]) },
+      ];
+
+      // 逐元素：清屏（设备像素尺寸！否则 viewBox 尺寸清不干净会留残影）→ 重绘 → 扫描。
+      // 单次扫描同时产出：包围盒（调试对照）、采点（播放用）、点亮分组（逐元素精确标注）
+      const boxes: { name: string; x0: number; y0: number; x1: number; y1: number }[] = [];
+      const pts: number[] = [];
+      const grp: number[] = [];
+      const W = oc.width;
+      const H = oc.height;
+      layers.forEach((layer, li) => {
+        ctx.clearRect(0, 0, W, H);
+        ctx.save();
+        ctx.scale(SAMPLE_SCALE, SAMPLE_SCALE);
+        layer.draw();
+        ctx.restore();
+        const d = ctx.getImageData(0, 0, W, H).data;
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        for (let y = 0; y < H; y += 2) {
+          for (let x = 0; x < W; x += 2) {
+            if (d[(y * W + x) * 4 + 3] > 140) {
+              if (x < x0) x0 = x;
+              if (x > x1) x1 = x;
+              if (y < y0) y0 = y;
+              if (y > y1) y1 = y;
+              pts.push(x / SAMPLE_SCALE, y / SAMPLE_SCALE);
+              grp.push(li);
+            }
+          }
+        }
+        if (x1 > x0) {
+          boxes.push({
+            name: layer.name,
+            x0: x0 / SAMPLE_SCALE, y0: y0 / SAMPLE_SCALE,
+            x1: x1 / SAMPLE_SCALE, y1: y1 / SAMPLE_SCALE,
+          });
+        }
+      });
+      return pts.length ? { pts, grp, w: vb.width, h: vb.height, boxes } : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** 调试输出用：数值取整 */
+  function fmt(n: number): string {
+    return String(Math.round(n));
+  }
+
+  /** 兜底恢复：移除画布、清掉播放态标记 → 真实三件套立即可见（信息零损失） */
+  function finalize(): void {
+    if (!hero || !canvas) return;
+    hero.removeAttribute('data-intro-state');
+    canvas.classList.add('hidden');
+    canvas.classList.remove('is-fading');
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    playing = false;
+  }
+
+  /** 画布初始化：覆盖首屏 section，dpr 上限 2（TCD 7.4）；返回 CSS px 尺寸与 ctx */
+  function setupCanvas(): { ctx: CanvasRenderingContext2D; W: number; H: number } | null {
+    if (!hero || !canvas) return null;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = hero.clientWidth;
+    const H = hero.clientHeight;
+    canvas.width = Math.ceil(W * dpr);
+    canvas.height = Math.ceil(H * dpr);
+    // 关键修复（2026-10-01）：canvas 是替换元素，绝对定位不自动拉伸——
+    // 不显式设 CSS 尺寸时按属性像素显示，Windows 125%/150% 缩放（dpr>1）下
+    // 画布会比容器大 dpr 倍，所有粒子整体放大偏移（v1 对不上的主因）
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // 之后一律用 CSS px 坐标绘制
+    return { ctx, W, H };
+  }
+
+  /**
+   * viewBox → 画布坐标映射：svg 的 getBoundingClientRect 与 viewBox 线性对应，
+   * 画布原点 = 首屏 section 原点（canvas absolute inset-0）。
+   * 必须与采样同一帧内取 rect（play 在触发时同步完成，布局稳定）。
+   */
+  function makeMapper(sampled: { w: number; h: number }): ((vx: number, vy: number) => [number, number]) | null {
+    if (!hero || !svg) return null;
+    const heroRect = hero.getBoundingClientRect();
+    const rect = svg.getBoundingClientRect();
+    return (vx: number, vy: number): [number, number] => [
+      rect.left - heroRect.left + (vx / sampled.w) * rect.width,
+      rect.top - heroRect.top + (vy / sampled.h) * rect.height,
+    ];
+  }
+
+  /** 主流程：采样 → 建粒子 → rAF 时间轴 → 落位交叉淡化（全程同步，无异步间隙） */
+  function play(): void {
+    if (!hero || !canvas || playing || REDUCED) return;
+    playing = true;
+
+    try {
+      // 先隐藏真实三件套（触发 BrandTrio 的隐藏规则），再同步采样
+      hero.setAttribute('data-intro-state', 'playing');
+      const sampled = sampleTargets();
+      const setup = setupCanvas();
+      const toScreen = sampled ? makeMapper(sampled) : null;
+      if (!sampled || !setup || !toScreen) throw new Error('starfield init failed');
+      const { ctx, W, H } = setup;
+      canvas.classList.remove('hidden', 'is-fading');
+      // 注意：不要设内联 opacity——v2 曾用 style.opacity='1' 复位，
+      // 结果内联样式压过 .is-fading 类，落位淡出从未生效（亮点叠加的直接根源）
+
+      // 粒子数：桌面 1600 / 移动端 ≤100（TCD 7.4）
+      const mobile = window.matchMedia('(max-width: 768px)').matches;
+      const N = mobile ? 100 : 1600;
+
+      // 目标点均匀洗牌抽样（采样点远多于粒子数）
+      const src = sampled.pts;
+      const srcG = sampled.grp;
+      const total = src.length / 2;
+      const order = new Uint32Array(total);
+      for (let i = 0; i < total; i++) order[i] = i;
+      for (let i = total - 1; i > 0; i--) {
+        const j = (Math.random() * (i + 1)) | 0;
+        const tmp = order[i] as number;
+        order[i] = order[j] as number;
+        order[j] = tmp;
+      }
+
+      // 光晕贴图：品牌紫→蓝渐变量化 6 档（B41EEC → 0E70F2），加 1 档纯亮白（点亮用）
+      const stops = ['#B41EEC', '#9A2AEE', '#8A32EF', '#5D54F1', '#3162F2', '#0E70F2'];
+      const sprites = stops.map((c) => makeSprite(c));
+      const flashSprite = makeSprite('#F2F6FF');
+
+      // 粒子初始化：起始位置随机散布全屏；颜色按目标 x 位置取渐变档位
+      const px = new Float32Array(N);
+      const py = new Float32Array(N);
+      const sx = new Float32Array(N);
+      const sy = new Float32Array(N);
+      const tx = new Float32Array(N);
+      const ty = new Float32Array(N);
+      const delay = new Float32Array(N); // 聚拢错峰 0–0.25
+      const size = new Float32Array(N);
+      const spr = new Array<HTMLCanvasElement>(N);
+      const group = new Uint8Array(N); // 0 猴头 / 1 Singho / 2 星禾科技
+      const phase = new Float32Array(N); // 漂移相位
+      const amp = new Float32Array(N); // 漂移幅度
+      const spd = new Float32Array(N); // 漂移速度
+
+      for (let i = 0; i < N; i++) {
+        const idx = order[i % total] as number;
+        const vx = src[idx * 2] as number;
+        const vy = src[idx * 2 + 1] as number;
+        const screen = toScreen(vx, vy);
+        tx[i] = screen[0];
+        ty[i] = screen[1];
+        sx[i] = Math.random() * W;
+        sy[i] = Math.random() * H;
+        px[i] = sx[i];
+        py[i] = sy[i];
+        delay[i] = Math.random() * 0.25;
+        size[i] = (mobile ? 2.4 : 3.0) + Math.random() * 3.0; // CSS px（星形贴图稍大才读得出芒）
+        const colorIdx = Math.min(5, Math.floor((vx / sampled.w) * 6));
+        spr[i] = sprites[colorIdx] as HTMLCanvasElement;
+        // 点亮分组：采样时逐元素精确标注（v3 不再按坐标阈值猜测）
+        group[i] = srcG[idx] as number;
+        phase[i] = Math.random() * Math.PI * 2;
+        amp[i] = 6 + Math.random() * 14;
+        spd[i] = 0.001 + Math.random() * 0.0015;
+      }
+
+      // 各组点亮时刻（依次点亮：猴头 → Singho → 星禾科技）
+      const glowAt = [GLOW_START, GLOW_START + 180, GLOW_START + 360];
+
+      const t0 = performance.now();
+
+      const frame = (now: number): void => {
+        const t = now - t0;
+
+        // 落位阶段一（点亮达峰即散场）：粒子画布先行消散，此刻内容仍隐藏——
+        // 避免「亮点还没散、真实内容已经出现」的脏叠（v3 修正 Dragon 反馈第三点）
+        if (t >= END) {
+          canvas.classList.add('is-fading'); // CSS 过渡 opacity → 0（380ms）
+          window.setTimeout(() => {
+            // 阶段二：星尘散尽后，真实三件套才淡入（TCD 7.2 落位处理）
+            hero.setAttribute('data-intro-state', 'done');
+          }, SETTLE + 20);
+          window.setTimeout(cleanup, SETTLE + 160);
+          return;
+        }
+
+        ctx.clearRect(0, 0, W, H);
+        ctx.globalCompositeOperation = 'lighter'; // 光晕叠加更接近星野质感
+
+        for (let i = 0; i < N; i++) {
+          // 聚拢进度（逐粒子错峰）
+          const cp = clamp01((t - DRIFT) / CONVERGE);
+          const local = clamp01((cp - delay[i]) / (1 - delay[i]));
+          const e = easeOut(local);
+
+          // 位置：起点 + 游移（幅度随聚拢进度衰减保证连续）+ 向目标插值
+          const wander = Math.sin(t * spd[i] + phase[i]) * amp[i] * (1 - e);
+          px[i] = lerp(sx[i], tx[i], e) + wander * 0.6;
+          py[i] = lerp(sy[i], ty[i], e) + Math.cos(t * spd[i] * 0.9 + phase[i]) * amp[i] * (1 - e) * 0.4;
+
+          // 透明度：入场 350ms 淡入；点亮期起轻微闪烁（星在呼吸，不是死点阵）
+          let alpha = t < 350 ? (t / 350) * 0.9 : 0.9;
+          if (t > GLOW_START) {
+            const tw = Math.min(1, (t - GLOW_START) / 300);
+            alpha = lerp(alpha, 0.78 + 0.22 * (0.5 + 0.5 * Math.sin(t * 0.004 + phase[i] * 4)), tw);
+          }
+          let s = size[i];
+
+          // 依次点亮：组窗口内增亮 + 放大 + 叠一层大光晕
+          const gt = t - glowAt[group[i]];
+          if (gt > 0 && gt < 340) {
+            const gp = easeOut(gt / 340);
+            alpha = 0.9 + gp * 0.1;
+            s = size[i] * (1 + gp * 0.7);
+            if (gp < 1) {
+              ctx.globalAlpha = 0.28 * (1 - gp * 0.4);
+              ctx.drawImage(flashSprite, px[i] - s * 1.6, py[i] - s * 1.6, s * 3.2, s * 3.2);
+            }
+          }
+
+          ctx.globalAlpha = alpha;
+          ctx.drawImage(spr[i], px[i] - s, py[i] - s, s * 2, s * 2);
+        }
+        ctx.globalAlpha = 1;
+        raf = requestAnimationFrame(frame);
+      };
+
+      let raf = requestAnimationFrame(frame);
+
+      /** 摘除一次性监听并兜底恢复（正常播完 / 隐藏 / resize 三条路径共用） */
+      function cleanup(): void {
+        document.removeEventListener('visibilitychange', onHide);
+        window.removeEventListener('resize', onResize);
+        finalize();
+      }
+
+      // TCD 7.4：标签隐藏时停止循环——一次心动效直接落位收尾，不留半程状态
+      const onHide = (): void => {
+        if (document.hidden && playing) {
+          cancelAnimationFrame(raf);
+          cleanup();
+        }
+      };
+      document.addEventListener('visibilitychange', onHide);
+
+      // 播放期间视口尺寸变化：不追帧重排，直接落位到静态三件套（动画仅 ~2.6s，损失可忽略）
+      const onResize = (): void => {
+        if (playing) {
+          cancelAnimationFrame(raf);
+          cleanup();
+        }
+        window.removeEventListener('resize', onResize);
+      };
+      window.addEventListener('resize', onResize, { once: true });
+    } catch {
+      // 采样失败 / Canvas 不可用：静默降级为静态三件套（TCD 7.4 初始化失败规格）
+      finalize();
+    }
+  }
+
+  // ---- 调试模式：/?introdebug=1 → 静态铺出采样点，肉眼核对粒子与三件套对位 ----
+  // ?introdebug=off → 只隐藏封面不铺点（作为像素 diff 校验的「干净基准帧」）
+  const dbgParam = new URLSearchParams(window.location.search).get('introdebug');
+  if (dbgParam !== null) {
+    // 调试帧要求确定性：CSS 硬隐藏封面（!important 不受模块执行顺序影响）+ 冻结全站动画
+    const fx = document.createElement('style');
+    fx.textContent =
+      '#intro-cover{display:none!important}' +
+      '*,*::before,*::after{animation:none!important;transition:none!important}';
+    document.head.appendChild(fx);
+  }
+  if (dbgParam === 'off') {
+    // 基准帧模式：到此为止，不采样不铺点
+  } else if (dbgParam === 'fix') {
+    // 取证模式：摘掉特效层、DOM 文字染绿——绿字位置 = DOM 文字真实颜料位置
+    const fx = document.createElement('style');
+    fx.textContent =
+      '.trio-fx-layer{display:none!important}' +
+      '.trio-svg text{fill:#00ff66!important}';
+    document.head.appendChild(fx);
+  } else if (dbgParam === 'inline') {
+    // 取证模式 2：把两个可见 text 的 class 换成等价行内样式（fx 摘掉）+ 品红染色作执行标记
+    // 若文字跳回规格位 → class 样式应用差异是元凶；若仍偏移 → 页面环境问题
+    const fx = document.createElement('style');
+    fx.textContent = '.trio-fx-layer{display:none!important}';
+    document.head.appendChild(fx);
+    svg?.querySelectorAll('text').forEach((t) => {
+      if (t.closest('defs')) return;
+      t.removeAttribute('class');
+      if ((t.textContent || '').indexOf('S') === 0 && (t.textContent || '').length === 6) {
+        t.setAttribute('style', 'font-family: Inter, \'SF Pro Display\', system-ui, sans-serif; font-style: oblique 10deg; font-size: 48px; font-weight: 300; letter-spacing: 8px; fill:#ff00ff;');
+      } else {
+        t.setAttribute('style', 'font-family: \'PingFang SC\', \'HarmonyOS Sans SC\', \'Microsoft YaHei\', system-ui, sans-serif; font-style: oblique 10deg; font-size: 210px; font-weight: 700; letter-spacing: 12px; fill:#ff00ff;');
+      }
+    });
+  } else if (dbgParam === 'ghost') {
+    // 鬼影模式：把采样器认知的三件套形状按同一映射画成半透明红色，
+    // 与真实三件套直接叠加对照——重合 = 映射正确，错位量 = 屏幕上直读
+    window.setTimeout(() => document.getElementById('intro-cover')?.classList.add('hidden'), 0);
+    const sampled = sampleTargets(); // 先采样：文字校准量在此产生，鬼影须与粒子同源
+    const setup = setupCanvas();
+    if (setup && hero && svg && sampled) {
+      const { ctx } = setup;
+      canvas.classList.remove('hidden');
+      const hr = hero.getBoundingClientRect();
+      const r = svg.getBoundingClientRect();
+      ctx.save();
+      // 与粒子目标完全一致的 viewBox → 屏幕映射
+      ctx.transform(
+        r.width / svg.viewBox.baseVal.width, 0,
+        0, r.height / svg.viewBox.baseVal.height,
+        r.left - hr.left, r.top - hr.top
+      );
+      drawMonkey(ctx, 'rgba(255,60,60,0.4)');
+      svg.querySelectorAll('text').forEach((t) => {
+        if (!t.closest('defs')) drawTextShape(ctx, t, 'rgba(255,60,60,0.4)');
+      });
+      ctx.restore();
+    }
+  } else if (dbgParam !== null) {
+    const sampled = sampleTargets();
+    const setup = setupCanvas();
+    const toScreen = sampled ? makeMapper(sampled) : null;
+    if (sampled && setup && toScreen) {
+      const { ctx, W, H } = setup;
+      canvas.classList.remove('hidden');
+      // 均匀抽 4000 点画成小十字，叠在三件套之上（canvas z-20 > 内容 z-10）
+      const total = sampled.pts.length / 2;
+      const step = Math.max(1, Math.floor(total / 4000));
+      ctx.fillStyle = 'rgba(255,80,80,0.9)';
+      let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+      for (let i = 0; i < total; i += step) {
+        const vx = sampled.pts[i * 2] as number;
+        const vy = sampled.pts[i * 2 + 1] as number;
+        const p = toScreen(vx, vy);
+        if (p[0] < minX) minX = p[0];
+        if (p[0] > maxX) maxX = p[0];
+        if (p[1] < minY) minY = p[1];
+        if (p[1] > maxY) maxY = p[1];
+        if (p[0] < 0 || p[0] > W || p[1] < 0 || p[1] > H) continue;
+        ctx.fillRect(p[0] - 1, p[1] - 1, 2, 2);
+      }
+      // 诊断框：品红 = 三件套 svg 实际渲染框；青色 = 采样点包围盒（两者应基本重合）
+      if (svg && hero) {
+        const hr = hero.getBoundingClientRect();
+        const r = svg.getBoundingClientRect();
+        ctx.strokeStyle = 'magenta';
+        ctx.strokeRect(r.left - hr.left, r.top - hr.top, r.width, r.height);
+        ctx.strokeStyle = 'cyan';
+        ctx.strokeRect(minX, minY, maxX - minX, maxY - minY);
+        ctx.font = '12px monospace';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('svg  ' + Math.round(r.left - hr.left) + ',' + Math.round(r.top - hr.top) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height), 8, 16);
+        ctx.fillText('bbox ' + Math.round(minX) + ',' + Math.round(minY) + ' ' + Math.round(maxX - minX) + 'x' + Math.round(maxY - minY), 8, 32);
+        ctx.fillText('dpr ' + String(window.devicePixelRatio), 8, 48);
+        // 逐元素对照：sampled（采样框→映射屏幕） vs DOM（浏览器真实渲染框）
+        // delta 为两者左上角差——绝对值 ≤2px 即认定对位无误
+        const domEls = [
+          svg.querySelector('g[transform]'),
+          ...Array.from(svg.querySelectorAll('text')).filter((t) => !t.closest('defs')),
+        ];
+        let ty = 64;
+        sampled.boxes.forEach((b, i) => {
+          const el = domEls[i];
+          const sx0 = (b.x0 / sampled.w) * r.width + (r.left - hr.left);
+          const sy0 = (b.y0 / sampled.h) * r.height + (r.top - hr.top);
+          const sw = ((b.x1 - b.x0) / sampled.w) * r.width;
+          const sh = ((b.y1 - b.y0) / sampled.h) * r.height;
+          ctx.strokeStyle = 'cyan';
+          ctx.strokeRect(sx0, sy0, sw, sh);
+          let line = b.name + ' sampled ' + fmt(sx0) + ',' + fmt(sy0) + ' ' + fmt(sw) + 'x' + fmt(sh);
+          if (el) {
+            const dr = el.getBoundingClientRect();
+            const dx = dr.left - hr.left;
+            const dy = dr.top - hr.top;
+            // 排版引擎口供：第一个字形实际布局位置（含所有 CSS 影响，screen 坐标）
+            let glyphPos = '';
+            try {
+              const isText = el.tagName === 'text';
+              const p = isText && 'getStartPositionOfChar' in el ? el.getStartPositionOfChar(0) : null;
+              const cs2 = getComputedStyle(el);
+              glyphPos =
+                ' glyph0=' + (p ? fmt(p.x) + ',' + fmt(p.y) : 'n/a') +
+                ' domB=' + cs2.dominantBaseline + ' shift=' + cs2.baselineShift;
+            } catch {
+              glyphPos = ' glyph0=ERR';
+            }
+            line +=
+              ' | dom ' + fmt(dx) + ',' + fmt(dy) + ' ' + fmt(dr.width) + 'x' + fmt(dr.height) +
+              ' | d(' + fmt(dx - sx0) + ',' + fmt(dy - sy0) + ')' + glyphPos;
+            ctx.strokeStyle = 'orange';
+            ctx.strokeRect(dx, dy, dr.width, dr.height);
+          }
+          ctx.font = '12px monospace';
+          ctx.fillStyle = '#ffffff';
+          ctx.fillText(line, 8, ty);
+          ty += 16;
+        });
+      }
+    }
+  }
+
+  // 触发入口：IntroCover 点击「进入」后派发（与封面组件解耦；没人监听即静态兜底）
+  document.addEventListener('singho:intro-enter', () => {
+    play();
+  });
+</script>
+
+<style>
+  /* 粒子画布：落位阶段一的快速消散（380ms；真实三件套在其后才淡入，见 BrandTrio） */
+  #starfield-canvas {
+    transition: opacity 380ms ease-out;
+  }
+  #starfield-canvas.is-fading {
+    opacity: 0;
+  }
+</style>

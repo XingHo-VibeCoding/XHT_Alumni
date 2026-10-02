@@ -41,51 +41,45 @@ body {
   color: transparent;
 }
 
-/* ---- 全站星空背景层（2026-09-28 重做：纯星空风格） ----
-   三层结构：.site-bg 本体画星云辉光，::before 密集小星，::after 稀疏亮星（带微闪烁）。
+/* ---- 全站星空背景层（2026-10-02 改版：位图银河底 + CSS 动效层） ----
+   结构：.site-bg 本体 = AI 位图银河背景（cover 铺满）+ 深空渐变兜底（图片未加载时不露白）
+         + 轻品牌辉光（给位图提品牌紫蓝，强度为旧版一半避免压过位图）
+   ::after 稀疏亮星闪烁（静态位图上的"生命感"点缀）；
+   .meteor 流星子元素（BaseLayout 内，低频划过）。
    整层 fixed 垫底（z-index:-1），不影响任何交互与排版 */
 .site-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  /* 深空底渐变（原 body 职责移交至此）+ 星云辉光：固定层永远铺满视口 */
+  /* 兜底底色 + 位图银河：位图在上层渲染，渐变仅作为加载前/失败时的底色 */
   background-color: var(--bg-void);
-  background-image:
+  background-image: url('/bg-stars.webp'),
     linear-gradient(180deg, var(--bg-void) 0%, var(--bg-base) 100%),
-    radial-gradient(55vw 40vh at 14% 10%, rgba(138, 50, 239, 0.18), transparent 70%),
-    radial-gradient(50vw 42vh at 86% 38%, rgba(14, 112, 242, 0.14), transparent 70%),
-    radial-gradient(60vw 35vh at 50% 96%, rgba(90, 40, 200, 0.12), transparent 72%);
+    radial-gradient(55vw 40vh at 14% 10%, rgba(138, 50, 239, 0.09), transparent 70%),
+    radial-gradient(50vw 42vh at 86% 38%, rgba(14, 112, 242, 0.07), transparent 70%),
+    radial-gradient(60vw 35vh at 50% 96%, rgba(90, 40, 200, 0.06), transparent 72%);
   background-repeat: no-repeat;
-  background-size: 100% 100%;
+  background-size: cover, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  background-position: center, center, center, center, center;
 }
 
-/* 密集小星：一层细碎星点，平铺整个视口 */
+/* 暗化遮罩（2026-10-02 Dragon 反馈"字看不清"）：盖在位图之上、
+   亮星/流星之下，均匀压暗背景提对比度。调暗程度改末位 alpha（当前 0.28） */
 .site-bg::before {
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.7;
-  background-image:
-    radial-gradient(1px 1px at 12% 24%, var(--star-core) 50%, transparent 51%),
-    radial-gradient(1px 1px at 68% 12%, rgba(242, 246, 255, 0.8) 50%, transparent 51%),
-    radial-gradient(1px 1px at 84% 62%, rgba(242, 246, 255, 0.9) 50%, transparent 51%),
-    radial-gradient(1px 1px at 32% 74%, rgba(199, 123, 255, 0.7) 50%, transparent 51%),
-    radial-gradient(1px 1px at 52% 44%, rgba(242, 246, 255, 0.7) 50%, transparent 51%),
-    radial-gradient(1px 1px at 8% 82%, rgba(111, 168, 255, 0.8) 50%, transparent 51%),
-    radial-gradient(1px 1px at 44% 90%, rgba(242, 246, 255, 0.8) 50%, transparent 51%),
-    radial-gradient(1px 1px at 92% 78%, rgba(242, 246, 255, 0.7) 50%, transparent 51%),
-    radial-gradient(1px 1px at 26% 8%, rgba(111, 168, 255, 0.7) 50%, transparent 51%),
-    radial-gradient(1px 1px at 74% 46%, rgba(242, 246, 255, 0.8) 50%, transparent 51%);
-  background-size: 560px 420px;
+  background: rgba(6, 7, 15, 0.28);
 }
 
-/* 稀疏亮星：更大更亮，带十字星光晕；整层缓慢闪烁（呼吸感） */
+/* 稀疏亮星：更大更亮，带十字星光晕；整层缓慢闪烁（呼吸感）。
+   位图版（2026-10-02）：位图本身已满天花，此层仅作点缀，透明度降至 0.5 */
 .site-bg::after {
   content: '';
   position: absolute;
   inset: 0;
-  opacity: 0.9;
+  opacity: 0.5;
   background-image:
     radial-gradient(
       2.5px 2.5px at 22% 32%,
@@ -127,13 +121,13 @@ body {
   animation: star-twinkle 6s ease-in-out infinite alternate;
 }
 
-/* 亮星层呼吸闪烁：仅透明度变化，性能友好 */
+/* 亮星层呼吸闪烁：仅透明度变化，性能友好（幅度随层透明度同步收敛） */
 @keyframes star-twinkle {
   from {
-    opacity: 0.55;
+    opacity: 0.3;
   }
   to {
-    opacity: 0.95;
+    opacity: 0.5;
   }
 }
 
@@ -142,6 +136,99 @@ body {
   .site-bg::after {
     animation: none !important;
     opacity: 0.8;
+  }
+}
+
+/* ---- 流星层（2026-10-02 新增，Dragon 需求：时不时一两颗划过） ----
+   两颗错峰低频循环：约 11s / 17s 一颗，非匀速感来自极短的划过窗口
+   （周期里仅 ~12% 时间可见，其余时间在等待）。纯 transform/opacity 动画（GPU 加速）。
+   位置用百分比相对视口，响应式安全；pointer-events 继承自 .site-bg（none） */
+.site-bg .meteor {
+  position: absolute;
+  width: 150px;
+  height: 2px;
+  border-radius: 2px;
+  /* 尾迹：头部（左端）亮白，向尾部（右端）渐隐 —— 运动方向 = 头部朝向 */
+  background: linear-gradient(
+    to right,
+    rgba(242, 246, 255, 0.95) 0%,
+    rgba(242, 246, 255, 0.35) 45%,
+    rgba(242, 246, 255, 0) 100%
+  );
+  opacity: 0;
+  transform: rotate(-30deg);
+}
+
+/* 流星头部亮点：小而亮的光球 */
+.site-bg .meteor::after {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -2.5px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 8px 2px rgba(242, 246, 255, 0.9);
+}
+
+/* 流星 A：右上区域起点，向左下方划过，约 11s 一颗 */
+.site-bg .meteor-a {
+  top: 10%;
+  left: 76%;
+  animation: meteor-shoot-a 11s linear 3s infinite;
+}
+
+/* 流星 B：更靠右下、更短更快，约 17s 一颗，与 A 错峰 */
+.site-bg .meteor-b {
+  top: 34%;
+  left: 90%;
+  width: 110px;
+  animation: meteor-shoot-b 17s linear 9s infinite;
+}
+
+/* 划过轨迹：rotate(-30deg) 后头部指向左下，translate 沿该方向位移 ~380px。
+   0→3% 淡入，3→13% 划过并淡出，其余时间原地等待（不可见） */
+@keyframes meteor-shoot-a {
+  0% {
+    transform: translate(0, 0) rotate(-30deg);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  13% {
+    transform: translate(-330px, 190px) rotate(-30deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(-330px, 190px) rotate(-30deg);
+    opacity: 0;
+  }
+}
+
+@keyframes meteor-shoot-b {
+  0% {
+    transform: translate(0, 0) rotate(-26deg);
+    opacity: 0;
+  }
+  3% {
+    opacity: 1;
+  }
+  11% {
+    transform: translate(-270px, 132px) rotate(-26deg);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* 减少动画模式：流星直接隐藏（静态星空不含流星，信息零损失） */
+@media (prefers-reduced-motion: reduce) {
+  .site-bg .meteor {
+    display: none;
   }
 }
 

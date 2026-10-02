@@ -6,8 +6,9 @@
  *   启动封面（E0，BaseLayout 内）→ 首屏三件套 + 理念 → 团队概览 → 文化内核 → 口号屏 → 页脚
  * 首页只承担品牌门面职责，内容经顶部导航切换进入，不做全内容长滚动。
  *
- * MVP 范围说明：首屏为 E1 降级形态（静态三件套 + 静止星点）；
- * 「星野凝字」粒子动效岛为下一个模块，完成后接入首屏。
+ * E1「星野凝字」已实装（2026-10-01）：BrandTrio 内挂载 StarField 粒子岛，
+ * 封面点击「进入」后播放 星点漂移 → 聚拢成三件套 → 依次点亮 → 落位淡入真实三件套；
+ * 回访 / reduced-motion / 采样失败等场景自动降级为静态首屏（REQ-003 / TCD 7.4）。
  */
 import BaseLayout from '../layouts/BaseLayout.astro';
 import BrandTrio from '../components/home/BrandTrio.astro';

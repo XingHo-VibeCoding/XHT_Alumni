@@ -5,16 +5,25 @@
  * 行为（严格按 TCD 7.1）：
  * - 默认隐藏（display:none）。内联脚本检测 sessionStorage：首次进入站点才显示 →
  *   保证 <noscript> / JS 失败场景下封面永不出现，网站不会被"堵在门外"。
- * - 点击「进入」→ 写入会话标记 → 隐藏封面。MVP 阶段首页为静态首屏（E1 降级形态），
- *   故点击后无动效可播；粒子动效岛完成后再在此处触发 E1。
- * - prefers-reduced-motion：仍呈现封面，点击后直接静态进入（行为一致，天然满足）。
+ * - 点击「进入」→ 写入会话标记 → 同步派发 singho:intro-enter 事件（StarField
+ *   立即隐藏首页内容）→ 封面快速淡出（220ms）后摘除。
+ *   事件解耦：若当前页无 StarField（事件无人监听）或降级条件命中，
+ *   真实三件套本来就可见，行为与静态首屏完全一致。
+ * - prefers-reduced-motion：仍呈现封面，点击后直接静态进入
+ *   （StarField 侧同样拦截 reduced-motion，双保险）。
+ *
+ * 2026-10-01 星空封面（Dragon 反馈三点之一）：粒子登场前天空必须已有星星。
+ * 2026-10-02 改版（Dragon 指示）：封面背景不再用 CSS 复刻星空，直接复用
+ *   .site-bg 同款 bg-stars.webp 位图银河配方（位图 + 深空兜底渐变 + 暗化遮罩 +
+ *   稀疏亮星点缀）——点「进入」前后天空完全连续，粒子聚拢在已有星空上发生，
+ *   「黑底突然冒星星」的突兀感彻底消除。
  */
 ---
 
-<!-- 全屏深空底封面：无导航、无页脚、无品牌文案——留白即仪式感（视觉规范 P1 E0） -->
+<!-- 全屏星空封面：无导航、无页脚、无品牌文案——留白即仪式感（视觉规范 P1 E0） -->
 <div
   id="intro-cover"
-  class="fixed inset-0 z-50 hidden flex-col items-center justify-center bg-[var(--bg-void)]"
+  class="fixed inset-0 z-50 hidden flex-col items-center justify-center"
   role="dialog"
   aria-modal="true"
   aria-label="欢迎进入星禾科技网站"
@@ -23,7 +32,7 @@
   <button
     id="intro-enter"
     type="button"
-    class="intro-btn inline-flex h-14 items-center rounded-xl px-14 text-lg font-medium text-white"
+    class="intro-btn relative z-10 inline-flex h-14 items-center rounded-xl px-14 text-lg font-medium text-white"
     style="background: var(--brand-gradient);"
   >
     进入
@@ -45,13 +54,119 @@
 
     btn.addEventListener('click', () => {
       sessionStorage.setItem(KEY, '1');
-      cover.classList.add('hidden');
-      cover.classList.remove('flex');
+      // v5 时序修正（Dragon 反馈"点击进入后先闪现首页内容再出动画"）：
+      // 先同步派发事件让 StarField 立即隐藏首页内容（data-intro-state='playing'），
+      // 再开始封面淡出——若反过来，封面半透明淡出的 220ms 里会透出尚未隐藏的内容。
+      // 同一帧内完成「隐藏内容 → 封面开始淡出」，视觉上无任何内容闪现窗口
+      document.dispatchEvent(new CustomEvent('singho:intro-enter'));
+      cover.classList.add('is-leaving');
+      window.setTimeout(() => {
+        cover.classList.add('hidden');
+        cover.classList.remove('flex', 'is-leaving');
+      }, 220);
     });
   }
 </script>
 
 <style>
+  /* 封面退场淡出：快速、克制；减少动画模式下被全局规则压到 150ms（行为不变） */
+  #intro-cover {
+    transition: opacity 220ms ease;
+  }
+  #intro-cover.is-leaving {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ---- 封面背景（2026-10-02）：与 .site-bg 同款位图银河配方，进站前后天空连续 ----
+     位图在上层渲染，深空渐变仅作加载前/失败时兜底；品牌辉光强度同 .site-bg 一半档 */
+  #intro-cover {
+    background-color: var(--bg-void);
+    background-image: url('/bg-stars.webp'),
+      linear-gradient(180deg, var(--bg-void) 0%, var(--bg-base) 100%),
+      radial-gradient(55vw 40vh at 14% 10%, rgba(138, 50, 239, 0.09), transparent 70%),
+      radial-gradient(50vw 42vh at 86% 38%, rgba(14, 112, 242, 0.07), transparent 70%),
+      radial-gradient(60vw 35vh at 50% 96%, rgba(90, 40, 200, 0.06), transparent 72%);
+    background-repeat: no-repeat;
+    background-size: cover, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+    background-position: center, center, center, center, center;
+  }
+
+  /* 暗化遮罩：与 .site-bg::before 同规格（均匀压暗提对比度）；z-index:-1 垫在按钮下 */
+  #intro-cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgba(6, 7, 15, 0.28);
+  }
+
+  /* 稀疏亮星点缀：与 .site-bg::after 同配方（位图上方的生命感闪烁层），整层缓慢呼吸 */
+  #intro-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.5;
+    background-image:
+      radial-gradient(
+        2.5px 2.5px at 22% 32%,
+        #fff 30%,
+        rgba(111, 168, 255, 0.5) 55%,
+        transparent 62%
+      ),
+      radial-gradient(
+        2px 2px at 78% 18%,
+        #fff 30%,
+        rgba(199, 123, 255, 0.5) 55%,
+        transparent 62%
+      ),
+      radial-gradient(
+        3px 3px at 62% 70%,
+        #fff 30%,
+        rgba(111, 168, 255, 0.45) 55%,
+        transparent 62%
+      ),
+      radial-gradient(
+        2px 2px at 38% 58%,
+        rgba(242, 246, 255, 0.95) 30%,
+        rgba(138, 50, 239, 0.4) 55%,
+        transparent 62%
+      ),
+      radial-gradient(
+        2.5px 2.5px at 90% 84%,
+        #fff 30%,
+        rgba(111, 168, 255, 0.5) 55%,
+        transparent 62%
+      ),
+      radial-gradient(
+        2px 2px at 6% 56%,
+        rgba(242, 246, 255, 0.95) 30%,
+        rgba(199, 123, 255, 0.45) 55%,
+        transparent 62%
+      );
+    background-size: 900px 680px;
+    animation: cover-twinkle 6s ease-in-out infinite alternate;
+  }
+
+  /* 亮星层呼吸闪烁：仅透明度变化，性能友好（幅度与 .site-bg::after 同步收敛） */
+  @keyframes cover-twinkle {
+    from {
+      opacity: 0.3;
+    }
+    to {
+      opacity: 0.5;
+    }
+  }
+
+  /* 减少动画模式：停闪，保持静态星空（与 .site-bg 降级一致） */
+  @media (prefers-reduced-motion: reduce) {
+    #intro-cover::after {
+      animation: none !important;
+      opacity: 0.8;
+    }
+  }
+
   /* 呼吸光晕：周期 3.6s（≥3s 达标），幅度低，不闪烁；减少动画模式下由全局规则压缩 */
   .intro-btn {
     animation: intro-breathe 3.6s ease-in-out infinite;

@@ -26,7 +26,8 @@
 import home from '../../data/home.json';
 
 // 关键词渐变强调映射：按句索引标记需强调的词
-const highlight = ['祖国', '事业', '科技'];
+// 2026-10-02 Dragon 指示：第四句「无怨无悔」与前三句关键词同等待遇（品牌渐变强调）
+const highlight = ['祖国', '事业', '科技', '无怨无悔'];
 
 // 渲染层去逗号（Dragon 2026-09-28 指示：四句以无标点短句并列展示）
 const sloganLines = home.slogan.map((line) => line.replace('，', ''));
@@ -126,15 +127,33 @@ const CHAR_STEP = 68;
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
+    /* 霓虹发光（2026-10-02 Dragon 指示）：必须用 drop-shadow 而非 text-shadow——
+       文字填充是透明色（由背景渐变显形），text-shadow 会透过字形把渐变色吃掉；
+       drop-shadow 作用于最终渲染结果，光晕只画在字形外圈。
+       双层：内层紫亮贴边 + 外层紫弥散，边界模糊但字形仍清晰 */
+    filter: drop-shadow(0 0 8px rgba(199, 123, 255, 0.55))
+      drop-shadow(0 0 22px rgba(138, 50, 239, 0.4));
   }
 
-  /* 减少动态效果：动画全关，四句直接静态完整呈现（TCD 7.4） */
+  /* 逐字聚焦动画的终态覆盖（特异性需压过 .fx-armed .slogan-line .char 的 blur(0)）：
+     前置 blur(0) 保证从入场 blur(8px) 平滑插值，drop-shadow 由中性值淡入（点亮感） */
+  .fx-armed.is-lit .slogan-line .char-hl {
+    filter: blur(0) drop-shadow(0 0 8px rgba(199, 123, 255, 0.55))
+      drop-shadow(0 0 22px rgba(138, 50, 239, 0.4));
+  }
+
+  /* 减少动态效果：动画全关，四句直接静态完整呈现（TCD 7.4）；
+     强调字发光保留（.char.char-hl 双 class 压过上方 filter:none，静态光晕无动画） */
   @media (prefers-reduced-motion: reduce) {
     .fx-armed .slogan-line .char {
       opacity: 1;
       filter: none;
       transform: none;
       transition: none;
+    }
+    .fx-armed .slogan-line .char.char-hl {
+      filter: drop-shadow(0 0 8px rgba(199, 123, 255, 0.55))
+        drop-shadow(0 0 22px rgba(138, 50, 239, 0.4));
     }
   }
 </style>

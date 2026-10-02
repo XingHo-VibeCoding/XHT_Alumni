@@ -59,8 +59,8 @@ body {
 
 /* ---------- 图层 2：上色绽放光晕（p3 闪光） ---------- */
 .bloom {
-  position: absolute; left: 50%; top: 42%;
-  width: 46%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(.6);
+  position: absolute; left: 73%; top: 50%;   /* 跟随 logo 中心（右侧半屏） */
+  width: 52%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(.6);
   background: radial-gradient(circle,
     rgba(199,123,255,.32) 0%, rgba(138,50,239,.18) 32%, transparent 68%);
   opacity: 0; pointer-events: none;
@@ -73,33 +73,46 @@ body {
 }
 
 /* ---------- 图层 3：Logo（线稿自绘 → 上色） ---------- */
+/* 布局：logo 占右半屏（约 42% 宽，垂直居中），文字块占左半屏 —— 仿原片构图 */
 .logo-wrap {
-  position: absolute; left: 50%; top: 42%;
-  width: clamp(120px, 21vmin, 220px);
-  transform: translate(-50%, -50%);
+  position: absolute; right: 5%; top: 50%;
+  width: min(42%, 62vmin);
+  transform: translateY(-50%);
 }
 .stage.p4 .logo-wrap { animation: float 5s ease-in-out 1.8s infinite alternate; }
-@keyframes float {            /* 定格后轻微悬浮呼吸 */
-  from { transform: translate(-50%, -52%); }
-  to   { transform: translate(-50%, -48%); }
+@keyframes float {            /* 定格后轻微悬浮呼吸（保持垂直居中基准） */
+  from { transform: translateY(-52%); }
+  to   { transform: translateY(-48%); }
 }
 .logo-svg { width: 100%; height: auto; display: block; }
 .logo-svg path {
   fill-opacity: 0;                       /* 初始只有线稿 */
   stroke: url(#singho-grad);
-  stroke-width: 2.6;
+  stroke-width: 1.15;                    /* 与光轨同量级的细线（光轨 1px） */
   stroke-linejoin: round; stroke-linecap: round;
-  filter: drop-shadow(0 0 7px rgba(138,50,239,.85));
+  /* 双层辉光：内圈锐利 + 外圈弥散，线更细所以辉光同步收敛 */
+  filter: drop-shadow(0 0 1.5px rgba(199,123,255,.9))
+          drop-shadow(0 0 7px rgba(138,50,239,.45));
   transition: fill-opacity 1.1s ease, stroke-opacity 1.2s ease;
 }
-/* p3 上色：外形 → 面部 → 双眼 依次填充，描边保留微光 */
+/* p3 上色：外形 → 面部 → 眼眶底座 → 眼皮 依次填充 */
 .stage.p3 .logo-outer { fill-opacity: 1; transition-delay: 0s;   }
 .stage.p3 .logo-face  { fill-opacity: 1; transition-delay: .28s; }
-.stage.p3 .logo-eyes  { fill-opacity: 1; transition-delay: .55s; }
-.stage.p3 .logo-svg path { stroke-opacity: .35; stroke-width: 1.8; transition-delay: .4s; }
+.stage.p3 .eye-socket { fill-opacity: 1; transition-delay: .55s; }
+.stage.p3 .eye-dark   { fill-opacity: 1; transition-delay: .75s; }
+/* p3 上色后：所有残描边归零（避免任何紫色勾线） */
+.stage.p3 .logo-svg path { stroke-opacity: 0; stroke-width: .85; transition-delay: .4s; }
+/* 眼睛组件：紫色辉光同步淡出——移动时只看到"紫底座+黑眼皮"整体在白脸上滑动 */
+.stage.p3 .eye-socket,
+.stage.p3 .eye-dark {
+  filter: drop-shadow(0 0 0 rgba(199,123,255,0)) drop-shadow(0 0 0 rgba(138,50,239,0));
+  transition: fill-opacity 1.1s ease, stroke-opacity 1.2s ease .4s, filter 1s ease 1.2s;
+}
 
-/* 双眼眨动：p4 定格后循环（眼皮开合 = 苏醒点睛） */
-.stage.p4 .logo-eyes {
+/* 双眼眨动：p4 定格后循环（眼皮开合 = 苏醒点睛）；
+   眼睛组件的跟随位移由 JS 设在 .eye-move 组的 transform 属性上，
+   与本组 CSS 眨眼动画分层互不冲突 */
+.stage.p4 .eye-blink {
   transform-box: fill-box; transform-origin: center;
   animation: blink 4.6s ease-in-out 1.6s infinite;
 }
@@ -110,25 +123,25 @@ body {
 }
 
 /* ---------- 图层 4：品牌名与口号 ---------- */
+/* 文字块：左半屏垂直居中，左对齐（仿原片 DeepSeek 字块位置） */
 .brand-box {
-  position: absolute; left: 50%; top: 42%;
-  transform: translate(-50%, 0);
-  text-align: center;
-  margin-top: clamp(80px, 14vmin, 150px);  /* 挂在 logo 正下方 */
+  position: absolute; left: 8%; top: 50%;
+  transform: translateY(-50%);
+  text-align: left;
   opacity: 0; transition: opacity .6s ease;
 }
 .stage.p3 .brand-box { opacity: 1; }
 .eyebrow {
-  font-size: clamp(10px, 1.3vw, 15px);
-  letter-spacing: .62em; text-indent: .62em;   /* 视觉居中补偿 */
+  font-size: clamp(12px, 1.6vw, 20px);
+  letter-spacing: .62em;
   color: var(--blue-300);
   opacity: 0; transition: opacity .7s ease .1s;
 }
 .stage.p3 .eyebrow { opacity: 1; }
 .brand-name {
-  margin-top: .28em;
-  font-size: clamp(30px, 5.6vw, 84px);
-  font-weight: 800; letter-spacing: .1em; text-indent: .1em;
+  margin-top: .22em;
+  font-size: clamp(40px, 7.4vw, 118px);
+  font-weight: 800; letter-spacing: .08em;
 }
 /* 渐变字：打字机 span 逐字点亮 */
 .brand-name .ch {
@@ -144,14 +157,14 @@ body {
 }
 .slogan {
   margin-top: .9em;
-  font-size: clamp(11px, 1.5vw, 20px);
-  letter-spacing: .42em; text-indent: .42em;
+  font-size: clamp(15px, 2.1vw, 32px);
+  letter-spacing: .3em;
   color: var(--text-secondary);
   opacity: 0; transition: opacity .9s ease .3s;
 }
 .slogan-en {
-  margin-top: .55em;
-  font-size: .58em; letter-spacing: .3em; text-indent: .3em;
+  margin-top: .6em;
+  font-size: .55em; letter-spacing: .26em;
   color: var(--text-tertiary);
   opacity: 0; transition: opacity .9s ease .6s;
 }
@@ -187,13 +200,12 @@ body {
 .hud-brand { top: 5%; left: 5.5%; }
 .hud-brand .name { font-size: 1.2em; font-weight: 700; letter-spacing: .22em; }
 .hud-ver { top: 5%; right: 5.5%; text-align: right; }
-/* 状态词：禾苗成长叙事 SEEDING → READY */
-.hud-status { top: 26%; left: 5.5%; }
+/* 状态词：禾苗成长叙事 SEEDING → READY（上移避让左侧放大的文字块） */
+.hud-status { top: 18%; left: 5.5%; }
 .hud-status span { display: block; color: var(--text-tertiary); transition: color .3s; }
 .hud-status span.on { color: var(--blue-300); text-shadow: 0 0 9px rgba(14,112,242,.6); }
 .hud-status span.on::before { content: "> "; }
 .hud-motto { bottom: 9.5%; left: 5.5%; }
-.hud-more { top: 44%; right: 5.5%; text-align: right; }
 .hud-rule {
   position: absolute; bottom: 6.4%; left: 4.5%; right: 4.5%; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(111,168,255,.45) 20%, rgba(199,123,255,.45) 80%, transparent);
@@ -253,10 +265,19 @@ body {
       </defs>
       <!-- ① 外形轮廓（最先勾形） -->
       <path class="logo-outer" d="M233,15 L230,16 L227,33 L217,56 L201,74 L187,84 L172,92 L141,101 L73,104 L56,113 L46,124 L40,136 L39,179 L22,187 L17,193 L16,197 L16,280 L19,287 L27,295 L35,298 L39,302 L38,348 L41,359 L51,375 L69,387 L79,390 L304,389 L315,386 L332,375 L343,358 L345,348 L345,299 L347,296 L353,295 L361,289 L369,275 L370,197 L368,188 L361,180 L348,177 L346,175 L346,141 L342,128 L337,121 L324,108 L314,104 L304,102 L285,103 L282,101 L282,85 L277,68 L270,53 L253,30 L242,20 Z" fill="url(#singho-grad)"/>
-      <!-- ② 白色面部（其次浮现） -->
-      <path class="logo-face" d="M88,142 L82,149 L79,156 L79,226 L87,238 L99,250 L83,265 L79,271 L79,337 L85,348 L97,356 L164,356 L170,352 L189,331 L191,331 L203,345 L214,354 L221,357 L284,356 L293,352 L300,344 L304,331 L304,273 L299,262 L283,246 L301,229 L304,220 L304,163 L303,156 L296,144 L290,139 L279,136 L214,136 L206,140 L190,155 L181,145 L168,136 L101,136 Z M228,198 L247,198 L250,199 L257,207 L258,270 L255,277 L247,283 L227,283 L218,274 L218,208 L219,205 Z M136,198 L157,199 L161,202 L164,208 L164,274 L154,283 L136,283 L127,276 L125,270 L125,210 L128,203 Z" fill="#FFFFFF"/>
-      <!-- ③ 双眼（最后点亮 = 苏醒） -->
-      <path class="logo-eyes" d="M227,200 L221,205 L219,210 L219,271 L221,276 L227,281 L248,281 L254,276 L256,271 L256,210 L254,205 L248,200 Z M135,200 L129,204 L127,209 L127,272 L129,276 L136,281 L155,281 L161,276 L163,270 L163,211 L159,202 L155,200 Z" fill="#14141C"/>
+      <!-- ② 白色面部（其次浮现）。原 SVG 的眼眶是"脸上的镂空洞"，洞底透出紫色渐变，
+           导致眼皮移动时紫色留在原地；此处已移除镂空子路径改为实心白脸，
+           眼眶紫色底座改由下方眼睛组件自带、随眼皮整体移动。 -->
+      <path class="logo-face" d="M88,142 L82,149 L79,156 L79,226 L87,238 L99,250 L83,265 L79,271 L79,337 L85,348 L97,356 L164,356 L170,352 L189,331 L191,331 L203,345 L214,354 L221,357 L284,356 L293,352 L300,344 L304,331 L304,273 L299,262 L283,246 L301,229 L304,220 L304,163 L303,156 L296,144 L290,139 L279,136 L214,136 L206,140 L190,155 L181,145 L168,136 L101,136 Z" fill="#FFFFFF"/>
+      <!-- ③ 双眼（最后点亮 = 苏醒）：
+           eye-move 组 = 紫色眼眶底座 + 深色眼皮，作为一个整体跟随鼠标移动；
+           静止时与原版 logo 视觉一致（黑眼外圈保留紫色描环）。 -->
+      <g class="eye-blink">
+        <g class="eye-move">
+          <path class="eye-socket" d="M228,198 L247,198 L250,199 L257,207 L258,270 L255,277 L247,283 L227,283 L218,274 L218,208 L219,205 Z M136,198 L157,199 L161,202 L164,208 L164,274 L154,283 L136,283 L127,276 L125,270 L125,210 L128,203 Z" fill="url(#singho-grad)"/>
+          <path class="eye-dark" d="M227,200 L221,205 L219,210 L219,271 L221,276 L227,281 L248,281 L254,276 L256,271 L256,210 L254,205 L248,200 Z M135,200 L129,204 L127,209 L127,272 L129,276 L136,281 L155,281 L161,276 L163,270 L163,211 L159,202 L155,200 Z" fill="#14141C"/>
+        </g>
+      </g>
     </svg>
   </div>
 
@@ -300,10 +321,6 @@ HOPE &amp; DREAMS FOR ALL</div>
 
     <div class="hud-item hud-motto hud-sm hud-dim">打造一家伟大的科技公司
 GIVE HOPE, GIVE DREAMS</div>
-
-    <div class="hud-item hud-more hud-sm hud-dim">EMBEDDED
-AI
-ROBOTICS</div>
   </div>
 
   <!-- 图层 6：光轨 -->
@@ -331,7 +348,8 @@ let timers = [], looping = false;
 const logoPaths = [
   { el: document.querySelector('.logo-outer'), t0: 1.15, dur: 1.5 },  /* ① 外形 */
   { el: document.querySelector('.logo-face'),  t0: 1.75, dur: 0.9 },  /* ② 面部 */
-  { el: document.querySelector('.logo-eyes'),  t0: 2.55, dur: 0.45 }, /* ③ 双眼压轴 */
+  { el: document.querySelector('.eye-socket'), t0: 2.25, dur: 0.45 }, /* ③ 眼眶底座 */
+  { el: document.querySelector('.eye-dark'),   t0: 2.65, dur: 0.35 }, /* ④ 眼皮压轴 */
 ];
 function drawLogo() {
   logoPaths.forEach(({ el, t0, dur }) => {
@@ -371,6 +389,27 @@ function cycleStatus() {
   }, 480);
 }
 
+/* ---------- 眼皮跟随鼠标：目标偏移采集 + rAF 缓动 ----------
+   深色眼皮本体在白色眼眶内滑动，视线始终朝向鼠标方向。
+   CUSTOM: 活动范围（viewBox 单位）与跟随灵敏度 */
+const EYE_RANGE_X = 7;     /* 眼皮水平最大偏移 */
+const EYE_RANGE_Y = 14;    /* 眼皮垂直最大偏移（眼眶较高，上下余量大） */
+const EYE_GAIN    = 0.014; /* 鼠标距离 → 偏移的灵敏度 */
+const eyesEl = document.querySelector('.eye-move');   /* 眼睛整体（紫底座+黑眼皮） */
+const eyeCur = { x: 0, y: 0 }, eyeTgt = { x: 0, y: 0 };
+
+window.addEventListener('mousemove', e => {
+  const r = document.querySelector('.logo-wrap').getBoundingClientRect();
+  if (!r.width) return;
+  /* 以 logo 中心为原点：偏移量按比例饱和，视线始终朝向鼠标方向 */
+  const dx = e.clientX - (r.left + r.width / 2);
+  const dy = e.clientY - (r.top + r.height / 2);
+  eyeTgt.x = Math.max(-EYE_RANGE_X, Math.min(EYE_RANGE_X, dx * EYE_GAIN));
+  eyeTgt.y = Math.max(-EYE_RANGE_Y, Math.min(EYE_RANGE_Y, dy * EYE_GAIN));
+});
+/* 鼠标离开窗口：视线缓缓回正 */
+document.documentElement.addEventListener('mouseleave', () => { eyeTgt.x = 0; eyeTgt.y = 0; });
+
 /* ---------- 星空 + 粒子：固定星点闪烁 + 少量上浮光尘 ---------- */
 const cv = document.getElementById('sky'), ctx = cv.getContext('2d');
 let stars = [], motes = [];
@@ -395,6 +434,11 @@ function initSky() {
   }));
 }
 function loopSky(t) {
+  /* 眼皮缓动跟随（复用同一 rAF，不额外开帧循环） */
+  eyeCur.x += (eyeTgt.x - eyeCur.x) * .12;
+  eyeCur.y += (eyeTgt.y - eyeCur.y) * .12;
+  if (eyesEl) eyesEl.setAttribute('transform',
+    `translate(${eyeCur.x.toFixed(2)} ${eyeCur.y.toFixed(2)})`);
   ctx.clearRect(0, 0, cv.width, cv.height);
   for (const s of stars) {                                 /* 星点闪烁 */
     const a = .25 + .55 * (0.5 + 0.5 * Math.sin(t / 900 * s.ts + s.tw));
